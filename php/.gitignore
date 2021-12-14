@@ -1,0 +1,12 @@
+pkg/*
+src/*
+*.tar.*
+*.t?z
+*.log
+logs/*
+packages/*
+packages-src/*
+sources/*
+phpbuilder.*
+nohup.out
+

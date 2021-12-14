@@ -1,0 +1,16 @@
+*.tar.*
+*.t?z
+/list.txt
+/mkrepo.sh
+/mkpkgs.sh
+/itemplate
+/*/build.log
+/build.log
+/_logs/*
+/_pkgs_base/*
+/_pkgs_ext/*
+/_pkgs/*
+/_aur/*
+/_repo/*
+*.orig
+*.rej

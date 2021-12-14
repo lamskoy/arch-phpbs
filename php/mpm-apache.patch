@@ -1,0 +1,20 @@
+--- a/configure
++++ b/configure
+@@ -6282,7 +6282,7 @@
+   esac
+ 
+   if test "$APACHE_VERSION" -lt 2004001; then
+-    APXS_MPM=`$APXS -q MPM_NAME`
++    APXS_MPM=prefork
+     if test "$APXS_MPM" != "prefork" && test "$APXS_MPM" != "peruser" && test "$APXS_MPM" != "itk"; then
+       
+   enable_maintainer_zts=yes
+@@ -7183,7 +7183,7 @@
+   esac
+ 
+   if test "$APACHE_VERSION" -lt 2004001; then
+-    APXS_MPM=`$APXS -q MPM_NAME`
++    APXS_MPM=prefork
+     if test "$APXS_MPM" != "prefork" && test "$APXS_MPM" != "peruser" && test "$APXS_MPM" != "itk"; then
+       
+   enable_maintainer_zts=yes
