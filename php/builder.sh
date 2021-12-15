@@ -1,14 +1,18 @@
 #!/bin/bash
 set -e -o pipefail
+#
+declare -rgi build_sums=0
+declare -rgi build_sourcepkg=0
+#
 declare -rg min_php=53
 declare -rg max_php=81
 #
 declare -g packages=""
 declare -g positional=()
-declare -gi source_packages=0
+
 # declares
 declare -rg source_file="PKGBUILD_template.sh"
-declare -rg deps_build="PKGBUILD_deps.sh"
+
 # exports
 export SRCPKGDEST="${SRCPKGDEST:-packages-src}"
 export PKGDEST="${PKGDEST:-packages}"
@@ -44,18 +48,6 @@ _create_dir() {
     fi
 }
 
-_dependency_install() {
-    local dependency="${1}"
-    local pkgfile="${2}"
-    local builddir=$(mktemp -d "phpbuilder.XXXXXX")
-    _build_message "BUILDING required dependency ${dependency} from: ${pkgfile}\e[0m"
-    if ((source_packages)); then
-        BUILDDIR="${builddir}" makepkg --nocheck -S -p "${pkgfile}"
-    fi
-    BUILDDIR="${builddir}" makepkg --nocheck -Lsfic -p "${pkgfile}"
-    if [[ $? -eq 0 ]]; then rm -rf "${builddir}"; fi
-}
-
 _process_package() {
     local phpbase=${1}
     local suffix=${2}
@@ -81,37 +73,41 @@ _process_package() {
         _error_message "Cannot create temp dir for ${package_name}";
         exit 1;
     fi
-    #_info_message "Using ${builddir} as build dir"
-    _info_message "Updating PKGBUILD ${newbuildfile} with sums for ${package_name}"
-    BUILDDIR="${builddir}" \
-        makepkg -g -p "${newbuildfile}" >> "${newbuildfile}"
-    if [[ $? -ne 0 ]]; then
-        _error_message "Error while building package sums file for ${package_name}";
-        _cmd_message "Last command: makepkg -g -p ${newbuildfile} >> ${newbuildfile}";
-        _dir_message "Last builddir: ${builddir}"
-        exit 1;
-    fi
-    if ((source_packages)); then
+    if ((build_sums)); then
+        _info_message "Updating PKGBUILD ${newbuildfile} with sums for ${package_name}"
+        BUILDDIR="${builddir}" \
+            makepkg -g -p "${newbuildfile}" >> "${newbuildfile}"
+        if [[ $? -ne 0 ]]; then
+            _error_message "Error while building package sums file for ${package_name}";
+            _cmd_message "Last command: makepkg -g -p ${newbuildfile} >> ${newbuildfile}";
+            _dir_message "Last builddir: ${builddir}"
+            exit 1;
+        fi 
+    fi 
+    if ((build_sourcepkg)); then
         _info_message "Building source package from ${newbuildfile} for ${package_name}"
         BUILDDIR="${builddir}" \
             makepkg -Sf -p "${newbuildfile}"
         if [[ $? -ne 0 ]]; then
             _error_message "Error while building source package";
-            _cmd_message "Last command: ";
-            _cmd_message "makepkg -Sf -p ${newbuildfile}";
+            _dir_message "Last buildfile: ${newbuildfile}";
             _dir_message "Last builddir: ${builddir}"
             exit 1;
         fi
     fi
     _info_message "Building binary package from ${newbuildfile} for ${package_name}"
-    BUILDDIR="${builddir}" \
-        makepkg --nocheck -Lsfc -p "${newbuildfile}"
+    if ((build_sums)); then
+        BUILDDIR="${builddir}" \
+            makepkg --nocheck -Lsfc -p "${newbuildfile}"
+    else
+        BUILDDIR="${builddir}" \
+            makepkg --skipinteg --nocheck -Lsfc -p "${newbuildfile}"
+    fi
     if [[ $? -eq 0 ]];
         then rm -rf "${builddir}" "${newbuildfile}";
     else
-        _error_message "Error while building source package";
-        _cmd_message "Last command: ";
-        _cmd_message "makepkg -Lsfc -p ${newbuildfile}";
+        _error_message "Error while building binary package";
+        _dir_message "Last buildfile: ${newbuildfile}";
         _dir_message "Last builddir: ${builddir}"
         exit 1;
     fi
@@ -135,10 +131,6 @@ _main() {
     _info_message "Source packages will be built to: \e[32m${SRCPKGDEST}\e[0m"
     _info_message "Logs will be written to: \e[32m${LOGDEST}\e[0m"
     _info_message "Additional source code downloaded to: \e[32m${SRCDEST}\e[0m"
-    _has_deps=$(pacman -Q | grep 'php5-libs') || _has_deps=;
-    if [[ -z $_has_deps ]]; then
-        _dependency_install "php5-libs" "${deps_build}"
-    fi
     for i in "${package_versions[@]}"; do
         IFS="@" read phpbase suffix <<<$(echo -e "${i}")
         phpbase=$(echo $phpbase | sed -E 's/[a-zA-Z_\-]+//g')
@@ -161,7 +153,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -s|--sources)
-      source_packages=1
+      build_sourcepkg=1
       shift
       ;;
     *)

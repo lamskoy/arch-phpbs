@@ -16,7 +16,7 @@ pkgrel=1
 # Vars
 source=()
 _submodules=()
-_patches=()
+_patches=('php-phpinfo.patch')
 makedepends=()
 
 # Pkgver
@@ -37,8 +37,8 @@ esac
 # Consts
 declare -rg _fpm_user=http
 declare -rg _fpm_group=http
-declare -rg _php5_icu=usr/lib/php5-libs/icu-64-1
-declare -rg _php5_gd=usr/lib/php5-libs/gd-2.1.1
+declare -rg _pkgver_icu=64-1
+declare -rg _icu_src_dir="icu/source"
 
 # PHP major version, constant
 declare -rg _php_major_minor=$(echo "$pkgver" | grep -Eo '([0-9]+\.[0-9]+)')
@@ -48,7 +48,7 @@ if ((_phpbase >= 80)); then
     # No libapache8.so, in PHP8.0+ just libapache etc
     declare -rg _so_suffix=''
 else
-    declare -rg _so_suffix="${_phpbase::1}";    
+    declare -rg _so_suffix="${_phpbase::1}";
 fi
 declare -rg name_phpconfig="php-config${_phpbase}${_suffix}"
 declare -rg name_phpize="phpize${_phpbase}${_suffix}"
@@ -60,6 +60,7 @@ declare -rg name_libapache_source="libphp${_so_suffix}.so"
 declare -rg name_mod_php="php_module${_so_suffix}"
 declare -rg name_script_php="php${_so_suffix}-script"
 declare -rg name_php_fpm="php${_phpbase}${_suffix}-fpm"
+declare -rg _php5_icu_target="usr/lib/php${_phpbase}${suffix}/icu${_pkgver_icu}"
 # End Binary/conf names
 
 # SAPI config
@@ -93,21 +94,21 @@ declare -rig _build_mcrypt=$((_build_sodium ^ 1));
 # Db stuff
 declare -rig _build_outdated_mysql=$((_phpbase >= 50 && _phpbase <= 59))
 declare -rig _build_mssql=$((_phpbase >= 50 && _phpbase <= 59))
-# End modules config 
+# End modules config
 
 # Not all patches are ready now
 declare -rig _build_openssl_v11_patch=$((_phpbase >= 56 && _phpbase <= 59))
 declare -rig _build_openssl_v10_patch=$((_phpbase < 70 && _phpbase >= 53 && ! _build_openssl_v11_patch))
 declare -rig _build_uses_autoconf=$((! _build_openssl_v10_patch));
 
-if ((_build_openssl_v11_patch)); then    
+if ((_build_openssl_v11_patch)); then
     _patches+=("openssl-1.1.patch")
 elif ((_build_openssl_v10_patch)); then
     _patches+=("openssl-1.0.patch")
 fi
 if ((_build_openssl_v10_patch && _phpbase <= 54)); then
-    _patches+=("openssl-sslv3.patch") 
-fi 
+    _patches+=("openssl-sslv3.patch")
+fi
 
 if ((_phpbase >= 54 && _phpbase <= 59)); then
     # PHP >= 5.4 && PHP < 7: Upgrade sqlite lib to 3.28
@@ -115,13 +116,13 @@ if ((_phpbase >= 54 && _phpbase <= 59)); then
 fi
 
 if ((56 == _phpbase)); then
-    # Defensive mode for sqlite 
+    # Defensive mode for sqlite
     _patches+=("sqlite-defensive-php5.6.patch")
 elif ((70 == _phpbase)); then
-    # Defensive mode for sqlite 
+    # Defensive mode for sqlite
     _patches+=("sqlite-defensive-php7.0.patch")
     # PHP == 7.0: Upgrade sqlite lib to 3.28
-    _patches+=("sqlite-3.28-php7.0.patch")    
+    _patches+=("sqlite-3.28-php7.0.patch")
 elif ((53 == _phpbase)); then
     _patches+=("cve-php5.3.patch")
     _patches+=("mpm-apache.patch")
@@ -164,10 +165,10 @@ if ((_phpbase >= 54 && _phpbase <= 73)); then
     _patches+=("recode-php5.4.patch")
 elif ((_phpbase == 53)); then
     _patches+=("recode-php5.3.patch")
-fi     
+fi
 if ((_phpbase >= 55 && _phpbase <= 59)); then
     _patches+=("php-opcache-lockfile-path.patch")
-fi    
+fi
 
 if ((_phpbase >= 53 && _phpbase <= 59)); then
     _patches+=("php-mysqlnd-charsets.patch")
@@ -175,7 +176,7 @@ if ((_phpbase >= 53 && _phpbase <= 59)); then
 fi
 
 if ((_phpbase >= 53 && _phpbase <= 54)); then
-    _patches+=("php-tests.patch")    
+    _patches+=("php-tests.patch")
 fi
 
 if ((_build_uses_autoconf)); then
@@ -183,7 +184,7 @@ if ((_build_uses_autoconf)); then
     # AND linking with system tzdata instead of bundled
     _use_system_timezonedb=1
     _patches+=("timezonedb-guess.patch")
-    _patches+=("timezonedb-php${_php_major_minor}.patch")    
+    _patches+=("timezonedb-php${_php_major_minor}.patch")
 fi
 
 if ((_phpbase >= 53 && _phpbase <= 81)); then
@@ -191,11 +192,11 @@ if ((_phpbase >= 53 && _phpbase <= 81)); then
     _patches+=("debian-php-${pkgver}.patch")
 fi
 # End patches
-    
+
 # Common makedepends
 makedepends+=(
     'apache' 'aspell' 'c-client' 'db' 'enchant' 'gmp' 'icu' 'libxslt' 'libzip' 'net-snmp'
-    'postgresql-libs' 'sqlite' 'systemd' 'unixodbc' 'curl' 'libtool' 'freetds' 'pcre' 
+    'postgresql-libs' 'sqlite' 'systemd' 'unixodbc' 'curl' 'libtool' 'freetds' 'pcre'
     'tidy' 'libfbclient' 'patchutils' 'oniguruma' 'patchelf' 'gd' 'argon2' 'autoconf'
     'automake'
 )
@@ -212,21 +213,25 @@ _submodules+=(
 # Sources
 source+=(
     "pear-config-patcher.php"
-    "php-apache.conf"     
+    "php-apache.conf"
 )
+
 
 if ((_phpbase >= 53 && _phpbase <= 54)); then
     source+=("https://php.net/distributions/php-${pkgver}.tar.bz2")
-    makedepends+=("php5-libs")
+    makedepends+=('python' 'sh')
+    source+=("https://github.com/unicode-org/icu/releases/download/release-${_pkgver_icu}/icu4c-${_pkgver_icu/-/_}-src.tgz")
+    declare -rg _build_with_custom_icu=1
 else
     source+=("https://php.net/distributions/php-${pkgver}.tar.xz")
+    declare -rg _build_with_custom_icu=0
 fi
 
 # Append patches to source :)
 source+=("${_patches[@]}")
 
 # Process BUILD stuff
-if ((_build_mcrypt)); then    
+if ((_build_mcrypt)); then
     makedepends+=('libmcrypt')
     _submodules+=('mcrypt')
 fi
@@ -258,7 +263,7 @@ if ((_build_openssl_v10_patch)); then
 fi
 
 # Declare submodules
-for i in "${_submodules[@]}"; do 
+for i in "${_submodules[@]}"; do
     pkgname+=("php${_phpbase}-${i}${_suffix}");
 done
 
@@ -274,6 +279,7 @@ declare -rig _priority_json=15
 # Temp vars
 _last_priority=
 _last_extension=
+_icu_addon=
 
 # Prepare our stuff with patches :)
 prepare() {
@@ -283,16 +289,16 @@ prepare() {
         -i sapi/apache2handler/config.m4 \
         -i configure
 
-    
+
     echo "[SED] sapi/fpm/Makefile.frag"
     sed -e 's#php-fpm\$(program_suffix)#php\$(program_suffix)-fpm#' \
         -e 's/.conf.default/.conf/g' \
-        -i sapi/fpm/Makefile.frag       
+        -i sapi/fpm/Makefile.frag
 
     echo "[SED] sapi/fpm/php-fpm.service.in"
     sed -E "s|ExecStart[\s]?=[\s]?@([a-zA-Z_]+)@/php-fpm|ExecStart=@\1@/${name_php_fpm}|g; \
             s|PIDFile[\s]?=[\s]?@([a-zA-Z_]+)@/run/php-fpm.pid|PIDFile=/run/${name_php_fpm}/php-fpm.pid|g" \
-        -i sapi/fpm/php-fpm.service.in           
+        -i sapi/fpm/php-fpm.service.in
 
     local _check_files=("sapi/fpm/www.conf.in" "sapi/fpm/php-fpm.conf.in");
     for file_conf in "${_check_files[@]}"; do
@@ -306,7 +312,7 @@ prepare() {
             -e 's#^;*[ \t]*listen.group =#listen.group =#' \
             -e 's#^;*[ \t]*error_log =.*#error_log = syslog#' \
             -e 's#^;*[ \t]*chdir =.*#;chdir = /srv/http#' \
-            -i "${file_conf}"          
+            -i "${file_conf}"
     done
 
     echo "[SED] php.ini-production"
@@ -314,30 +320,33 @@ prepare() {
         -e "s#%EXTENSIONDIR%#/usr/lib/php${_phpbase}${_suffix}/modules#g" \
         -e "s#^;*[ \t]*extension=#;extension=#g" \
         -i php.ini-production
-    
+
     for patch_name in "${_patches[@]}"; do
         echo "[PATCH] Applying source patch ${patch_name}";
         patch -p1 -i "../${patch_name}"
     done
-    
+
     if ((_build_uses_autoconf)); then
         autoconf
-    fi  
-    
+    fi
+
     if ((_phpbase >= 72)); then
         rm -f tests/output/stream_isatty_*.phpt
     fi
     if ((_phpbase >= 80)); then
-        rm -f Zend/tests/arginfo_zpp_mismatch*.phpt    
-    fi            
+        rm -f Zend/tests/arginfo_zpp_mismatch*.phpt
+    fi
     popd
 }
 
 
-# BUILD them all 
+# BUILD them all
 
-build() {  
+build() {
+    local _phpextensions=''
+
     export EXTENSION_DIR="/usr/lib/php${_phpbase}${_suffix}/modules"
+
     if ((_build_openssl_v10_patch)); then
         export PHP_OPENSSL_DIR="/usr/lib/openssl-1.0"
     fi
@@ -352,7 +361,39 @@ build() {
         # PHP 5 and 7 need this stuff
         _new_flags+=' -DU_DEFINE_FALSE_AND_TRUE=1 '
     fi
-    
+
+    local _ldflags=''
+    local  _php5_icu="${srcdir}/${_icu_src_dir}/php${_phpbase}${suffix}-icu${_pkgver_icu}"
+    if [[ ! -d $_php5_icu ]]; then
+        mkdir -p "${_php5_icu}"
+    fi
+    if ((_build_with_custom_icu)); then
+        pushd "${_icu_src_dir}"
+        ./configure --prefix="${_php5_icu}" \
+            --sysconfdir="${_php5_icu}/etc" \
+            --mandir="${_php5_icu}/share/man" \
+            --sbindir="${_php5_icu}/bin" \
+            --libdir="${_php5_icu}/lib" \
+            --includedir="${_php5_icu}/include" \
+            --disable-tests \
+            --disable-debug
+        make
+        make install
+        ./configure --prefix="/${_php5_icu_target}" \
+            --sysconfdir="/${_php5_icu_target}/etc" \
+            --mandir="/${_php5_icu_target}/share/man" \
+            --sbindir="/${_php5_icu_target}/bin" \
+            --libdir="/${_php5_icu_target}/lib" \
+            --includedir="/${_php5_icu_target}/include" \
+            --disable-tests \
+            --disable-debug
+        make
+        popd
+        icu_addon="--with-icu-dir=${_php5_icu}"
+        _ldflags+="-Wl,-rpath=$ORIGIN/${_php5_icu_target}/lib"
+        _phpextensions+=" ${icu_addon} "
+    fi
+
     local _phpconfig="\
         --srcdir=../php-${pkgver} \
         --prefix=/usr \
@@ -369,15 +410,19 @@ build() {
         --mandir=/usr/share/man \
         --without-pear \
         "
+    if (( ! _build_openssl_v10_patch || ! _build_with_custom_icu)); then
+        _phpconfig+=" --disable-rpath "
+    fi
+
     if ((_phpbase > 53)); then
         _phpconfig+=" --config-cache "
         _phpconfig+=" --datarootdir=/usr/share/php${_phpbase}${_suffix} "
-    fi    
+    fi
     if ((_use_system_timezonedb)); then
         _phpconfig+=" --with-system-tzdata "
     fi
-    
-    local _phpextensions="\
+
+    _phpextensions+="\
         --enable-bcmath=shared \
         --with-bz2=shared,/usr \
         --with-gmp=shared,/usr \
@@ -386,11 +431,11 @@ build() {
         --with-snmp=shared,/usr \
         --with-tidy=shared,/usr \
         --enable-filter \
-        --with-readline \  
+        --with-readline \
         --enable-pcntl \
         "
     if ((_build_json)); then
-        _phpextensions+=" --enable-json=shared " 
+        _phpextensions+=" --enable-json=shared "
     fi
     if ((_phpbase >= 80)); then
         _phpextensions+=" --with-password-argon2 "
@@ -416,23 +461,23 @@ build() {
         _phpextensions+="\
             --with-ldap=shared,/usr \
             --with-ldap-sasl \
-            "            
+            "
         # sqlite3 pdo_sqlite
         _phpextensions+="\
             --with-pdo-sqlite=shared,/usr \
             --with-sqlite3=shared \
-            "                  
+            "
     else
         _phpextensions+=" --enable-zip=shared "
         _phpextensions+=" --with-curl=shared,/usr  "
-        _phpextensions+=" --with-enchant=shared,/usr "        
+        _phpextensions+=" --with-enchant=shared,/usr "
         _phpextensions+=" --with-pcre-regex=/usr "
         _phpextensions+=" --with-openssl=/usr "
         # odbc pdo_odbc
         _phpextensions+="\
             --with-unixODBC=shared,/usr \
             --with-pdo-odbc=shared,unixODBC,/usr \
-            "        
+            "
         _phpextensions+="\
             --with-ldap=shared,/usr \
             --with-ldap-sasl=/usr \
@@ -441,7 +486,7 @@ build() {
         _phpextensions+="\
             --with-pdo-sqlite=shared,/usr \
             --with-sqlite3=shared,/usr \
-            "            
+            "
         _phpextensions+="\
             --enable-hash \
             --with-mhash=/usr \
@@ -453,7 +498,7 @@ build() {
     if ((_phpbase >= 74)); then
         _with_gd_word="--enable-gd"
     fi
-       
+
     if (( ! _build_shared_gd && _build_bundled_gd )); then
             _phpextensions+=" ${_with_gd_word} "
     elif (( _build_shared_gd && _build_bundled_gd )); then
@@ -466,12 +511,12 @@ build() {
         fi
     else
         if ((_phpbase >= 74)); then
-            _phpextensions+=" --${_with_gd_word} -with-external-gd=/usr "  
+            _phpextensions+=" --${_with_gd_word} -with-external-gd=/usr "
         else
-            _phpextensions+=" ${_with_gd_word}=/usr "     
-        fi    
-    fi 
- 
+            _phpextensions+=" ${_with_gd_word}=/usr "
+        fi
+    fi
+
     if ((_phpbase < 72)); then
         _phpextensions+=" --enable-gd-native-ttf "
     fi
@@ -526,7 +571,7 @@ build() {
     if ((_build_static_pdo)); then
         _phpextensions+=" --enable-pdo "
     else
-        _phpextensions+=" --enable-pdo=shared "        
+        _phpextensions+=" --enable-pdo=shared "
     fi
 
     # mysqlnd mysqli pdo_mysql
@@ -541,7 +586,7 @@ build() {
         _phpextensions+=" --with-zlib-dir=/usr "
     else
         _phpextensions+=" --with-zlib"
-    fi       
+    fi
 
     if ((_build_outdated_mysql)); then
         _phpextensions+=" --with-mysql=shared,mysqlnd "
@@ -577,7 +622,7 @@ build() {
         --with-imap-ssl=yes \
         "
     # interbase pdo_firebird
-    # requires: libfbclient    
+    # requires: libfbclient
     _phpextensions+=" --with-pdo-firebird=shared,/usr "
     if ((_build_interbase)); then
         _phpextensions+=" --with-interbase=shared,/usr "
@@ -592,9 +637,9 @@ build() {
         --enable-soap=shared \
         "
     if ((_phpbase < 74)); then
-        _phpextensions+=" --with-libxml-dir=/usr "        
+        _phpextensions+=" --with-libxml-dir=/usr "
     fi
-    
+
     if ((_build_opcache)); then
         _phpextensions+="\
             --enable-opcache \
@@ -609,14 +654,14 @@ build() {
     if ((_build_xmlrpc)); then
         _phpextensions+=" --with-xmlrpc=shared "
     fi
-    
- 
+
+
     if ((_build_sodium)); then
         _phpextensions+=" --with-sodium=shared "
     fi
-    
+
     _phpextensions+=" --enable-mbstring=shared "
-    
+
     if ((_phpbase > 53)); then
         # 5.3 fails to be built with mbregex
         _phpextensions+=" --enable-mbregex "
@@ -628,11 +673,6 @@ build() {
     _phpextensions+=" --with-pdo-dblib=shared,/usr "
     if ((_build_mssql)); then
         _phpextensions+=" --with-mssql=shared,/usr "
-    fi    
-    if ((_phpbase >= 50 && _phpbase <= 54)); then
-        _phpextensions+=" --with-icu-dir=/${_php5_icu} "
-    else
-        _phpextensions+=" --disable-rpath "
     fi
 
     local _phpextensions_fpm="\
@@ -646,30 +686,27 @@ build() {
     if ((_phpbase > 55)); then
         _phpextensions_fpm+=" --with-fpm-acl "
     fi
-        
-    local _ldflags=''
-    if ((_phpbase >= 50 && _phpbase <= 54)); then
-        _ldflags="-Wl,-rpath=$ORIGIN/${_php5_icu}"
-    fi
-    
+
+
+
     if [[ ! -z "${_new_flags}" ]]; then
         CPPFLAGS+=" $_new_flags "
     fi
     if [[ ! -z "${_ldflags}" ]]; then
         LDFLAGS+=" $_ldflags "
     fi
-        
+
     echo "[DEBUG] CPPFLAGS ${_new_flags}"
     echo "[DEBUG] LDGFLAGS ${_ldflags}"
     echo "[DEBUG] PHPCONF  ${_phpconfig}" | sed -E 's|[ \t]+|\n|g';
     echo "[DEBUG] PHPEXT ${_phpextensions}" | sed -E 's|[ \t]+|\n|g';
-    echo "[DEBUG] FPMEXT ${_phpextensions_fpm}" | sed -E 's|[ \t]+|\n|g';   
+    echo "[DEBUG] FPMEXT ${_phpextensions_fpm}" | sed -E 's|[ \t]+|\n|g';
     #echo "[DEBUG] Build vars:\n $(declare -p | grep _build_ | grep -v lint_package_functions)"
-    
+
     if [[ ! -d "build" ]]; then
         mkdir "build"
     fi
-    
+
     pushd "build"
     if [[ -L configure ]]; then
         rm configure
@@ -784,13 +821,13 @@ check() {
         ../build/sapi/cli/php -n run-tests.php -n -P {tests,Zend}
     elif ((73 == _phpbase)); then
         export TESTS='tests Zend'
-        make test   
+        make test
     elif ((_phpbase > 73)); then
         export TEST_PHP_ARGS="-j$(nproc)"
         export TESTS='tests Zend'
-        make test            
-    fi  
-    popd    
+        make test
+    fi
+    popd
 }
 
 # Custom code
@@ -798,7 +835,7 @@ _install_module_ini() {
     local extension=$(echo "${1}" | sed 's/\.so//')
     local priority="${_priority_default}"
     case "${extension}" in
-        "json") 
+        "json")
             priority="${_priority_json}"
             ;;
         "xml")
@@ -823,7 +860,7 @@ _install_module_ini() {
             extension_type=";extension"
             ;;
     esac
-    
+
     if [[ ! -d "${pkgdir}/etc/php${_phpbase}${_suffix}/conf.d" ]]; then
         mkdir -p "${pkgdir}/etc/php${_phpbase}${_suffix}/conf.d"
     fi
@@ -834,7 +871,7 @@ _install_module_ini() {
 }
 
 _install_module_so() {
-    install -D -m755 "./build/modules/${1}.so" "${pkgdir}/usr/lib/php${_phpbase}${_suffix}/modules/${1}.so";
+    install -D -m755 "build/modules/${1}.so" "${pkgdir}/usr/lib/php${_phpbase}${_suffix}/modules/${1}.so";
 }
 
 _install_module() {
@@ -845,12 +882,18 @@ _install_module() {
 
 
 package_php%PHPBASE%%SUFFIX%() {
+    if ((_build_with_custom_icu)); then
+        pushd "${_icu_src_dir}"
+        make DESTDIR="${pkgdir}" install
+        make clean
+        popd
+        rm -rf "${pkgdir}/${_php5_icu_target}/bin"
+        rm -rf "${pkgdir}/${_php5_icu_target}/include"
+        rm -rf "${pkgdir}/${_php5_icu_target}/share"
+    fi
     # Binary names
     pkgdesc='A general-purpose scripting language that is especially suited to web development'
     depends=('libxml2' 'pcre')
-    if ((_phpbase >= 53 && _phpbase <= 54)); then
-        depends+=("php5-libs")
-    fi
     backup=("etc/php${_phpbase}${_suffix}/php.ini")
     #provides=("php${_phpbase}${_suffix}=${pkgver}")
     pushd "build"
@@ -860,29 +903,30 @@ package_php%PHPBASE%%SUFFIX%() {
     install -d -m755 "${pkgdir}/etc/php${_phpbase}${_suffix}/conf.d/"
 
     pushd "${pkgdir}/usr/lib/php${_phpbase}${_suffix}/modules/"
-        # remove static modules
-        rm -f *.a        
-        # remove modules provided by sub packages
-        rm -f {enchant,imap,intl,pspell,snmp,tidy,curl,ldap,bz2,bcmath,soap,zip,gmp,dba,opcache,json,gd,mcrypt,sodium,recode}.so
-        # dblib package
-        rm -rf {pdo_dblib,mssql}.so
-        # xml package
-        rm -f {dom,simplexml,xml,xmlreader,xmlwriter,xsl,wddx,xmlrpc}.so
-        # PostgreSQL
-        rm -f {pgsql,pdo_pgsql}.so
-        # ODBC
-        rm -f {odbc,pdo_odbc}.so
-        # SQLite
-        rm -f {pdo_sqlite,sqlite3}.so
-        # pdo_firebird
-        rm -f {pdo_firebird.so,interbase.so}
-        # MySQL modules
-        rm -f {mysqli,pdo_mysql,mysqlnd,mysql}.so
-        
-        # Install COMMON modules
-        for i in *.so; do
-            _install_module_ini "${i}"
-        done
+    # remove static modules
+    rm -f *.a
+
+    # remove modules provided by sub packages
+    rm -f {enchant,imap,intl,pspell,snmp,tidy,curl,ldap,bz2,bcmath,soap,zip,gmp,dba,opcache,json,gd,mcrypt,sodium,recode}.so
+    # dblib package
+    rm -rf {pdo_dblib,mssql}.so
+    # xml package
+    rm -f {dom,simplexml,xml,xmlreader,xmlwriter,xsl,wddx,xmlrpc}.so
+    # PostgreSQL
+    rm -f {pgsql,pdo_pgsql}.so
+    # ODBC
+    rm -f {odbc,pdo_odbc}.so
+    # SQLite
+    rm -f {pdo_sqlite,sqlite3}.so
+    # pdo_firebird
+    rm -f {pdo_firebird.so,interbase.so}
+    # MySQL modules
+    rm -f {mysqli,pdo_mysql,mysqlnd,mysql}.so
+
+    # Install COMMON modules
+    for i in *.so; do
+        _install_module_ini "${i}"
+    done
     popd
 
     # remove empty directory
@@ -890,7 +934,7 @@ package_php%PHPBASE%%SUFFIX%() {
 
     # move include directory
     mv "${pkgdir}/usr/include/php" "${pkgdir}/usr/include/php${_phpbase}${_suffix}"
-    
+
     # Link to phar
     ln -sf "${name_phar}.phar" "${pkgdir}/usr/bin/${name_phar}"
 
@@ -909,19 +953,22 @@ package_php%PHPBASE%%SUFFIX%() {
         mv "${pkgdir}/usr/share/man/man1/phar.phar.1" \
             "${pkgdir}/usr/share/man/man1/phar.${name_phar}.1"
     fi
-    
+
     # kill phar symlink in old php builds
     rm -f "${pkgdir}/usr/bin/phar"
-    
+
     # fix paths in executables
     echo "[SED] ${pkgdir}/usr/bin/${name_phpize}"
     sed -i "/^includedir=/c \includedir=/usr/include/php${_phpbase}${_suffix}" "${pkgdir}/usr/bin/${name_phpize}"
     echo "[SED] ${pkgdir}/usr/bin/${name_phpconfig}"
     sed -i "/^include_dir=/c \include_dir=/usr/include/php${_phpbase}${_suffix}" "${pkgdir}/usr/bin/${name_phpconfig}"
 
+    #sed -i "/^php_cli_binary=/c \include_dir=/usr/bin/php${_phpbase}${_suffix}" "${pkgdir}/usr/bin/${name_phpconfig}"
+    #sed -i "/^php_cgi_binary=/c \include_dir=/usr/bin/php-cgi${_phpbase}${_suffix}" "${pkgdir}/usr/bin/${name_phpconfig}"
+
     echo "[SED] Sed for ${pkgdir}/usr/lib/php${_phpbase}${_suffix}/build/phpize.m4"
     # make phpize use correct php-config
-    sed -i "/^\[  --with-php-config=/c \[  --with-php-config=PATH  Path to php-config [${name_phpconfig}]], ${name_phpconfig}, no)" "${pkgdir}/usr/lib/php${_phpbase}${_suffix}/build/phpize.m4"            
+    sed -i "/^\[  --with-php-config=/c \[  --with-php-config=PATH  Path to php-config [${name_phpconfig}]], ${name_phpconfig}, no)" "${pkgdir}/usr/lib/php${_phpbase}${_suffix}/build/phpize.m4"
     # popd
     popd
 }
@@ -1063,7 +1110,7 @@ package_php%PHPBASE%-pear%SUFFIX%() {
         mv "${pkgdir}/usr/bin/${i}" "${pkgdir}/usr/bin/${pkgbase/php/$i}"
         # fix hardcoded php paths in pear
         sed -i "s|/usr/bin/php|/usr/bin/php${_phpbase}${_suffix}|g" "${pkgdir}/usr/bin/${pkgbase/php/$i}"
-        sed -i "s|PHP=php|PHP=${_phpbase}${_suffix}|g" "${pkgdir}/usr/bin/${pkgbase/php/$i}"            
+        sed -i "s|PHP=php|PHP=${_phpbase}${_suffix}|g" "${pkgdir}/usr/bin/${pkgbase/php/$i}"
     done
     # fix pear.conf with unserialize
     ./sapi/cli/php ../pear-config-patcher.php "${pkgdir}/etc/php${_phpbase}${_suffix}/pear.conf" "/usr/bin/php${_phpbase}${_suffix}" "${_phpbase}${_suffix}"
@@ -1072,13 +1119,13 @@ package_php%PHPBASE%-pear%SUFFIX%() {
     popd
 }
 
-package_php%PHPBASE%-dblib%SUFFIX%() {  
+package_php%PHPBASE%-dblib%SUFFIX%() {
     depends=("php${_phpbase}${_suffix}" 'freetds')
     provides=(
-        "php${_phpbase}${_suffix}-sybase=${pkgver}"    
+        "php${_phpbase}${_suffix}-sybase=${pkgver}"
     )
    _install_module pdo_dblib
-    if ((_build_mssql)); then        
+    if ((_build_mssql)); then
         _install_module mssql
         provided+=("php${_phpbase}${_suffix}-mssql=${pkgver}")
         _desc="pdo_dblib module for php${_phpbase}${_suffix}"
@@ -1117,6 +1164,10 @@ package_php%PHPBASE%-intl%SUFFIX%() {
     pkgdesc="intl module for php${_phpbase}${_suffix}"
     depends=("php${_phpbase}${_suffix}")
     #provides=("php%PHPBASE%-intl=${pkgver}" "php-intl=${pkgver}")
+    if ((_build_with_custom_icu)); then
+        # Patch to proper path inside intl.so
+        patchelf --set-rpath "/${_php5_icu_target}/lib" "build/modules/intl.so"
+    fi
     _install_module intl
 }
 
@@ -1175,9 +1226,9 @@ package_php%PHPBASE%-tidy%SUFFIX%() {
 package_php%PHPBASE%-xml%SUFFIX%() {
     pkgdesc="xml modules for php${_phpbase}${_suffix}"
     depends=("php${_phpbase}${_suffix}" 'libxslt' 'libxml2')
-    provides=("php%PHPBASE%-xsl=${pkgver}" "${pkgname}-xsl=${pkgver}")
-    replaces=("php%PHPBASE%-xsl")
-    conflicts=("php%PHPBASE%-xsl")
+    provides=("php%PHPBASE%%SUFFIX%-xsl")
+    replaces=("php%PHPBASE%%SUFFIX%-xsl")
+    conflicts=("php%PHPBASE%%SUFFIX%-xsl")
     _install_module dom
     _install_module simplexml
     if ((_build_wddx)); then
@@ -1305,7 +1356,7 @@ package_php%PHPBASE%-interbase%SUFFIX%() {
     #backup=()
     if ((_build_interbase)); then
         _install_module interbase
-    fi    
+    fi
     _install_module pdo_firebird
 }
 # End interbase
