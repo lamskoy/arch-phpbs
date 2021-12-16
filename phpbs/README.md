@@ -1,4 +1,4 @@
-## php
+## phpbs
 ### PHP Building system for all PHP versions packages from 5.3 to 8.1
 
 #### How to use it?
