@@ -1,0 +1,1594 @@
+#!/bin/bash
+#@@@PKGBUILD_START@@@
+makedepends=(
+    'libtool' 'autoconf' 'automake' 'patchelf' 'gawk' 'sed' 'bash' 'python' 'libxml2' 'pam'
+    'openssl' 'openssl-1.0' 'argon2' 'libmcrypt' 'libsodium' 'libldap' 'libsasl' 'krb5' 
+    'libxslt'  'libzip' 'freetds' 'apache' 'aspell' 'c-client' 'db' 'enchant' 'readline'
+    'gmp' 'icu' 'net-snmp' 'postgresql-libs' 'sqlite' 'systemd-libs' 'unixodbc' 'curl' 'ncurses'
+    'freetds' 'pcre' 'tidy' 'libfbclient' 'oniguruma' 'gd'  'recode' 'bzip2' 'gdbm' 'zlib'  
+)
+arch=('i686' 'x86_64')
+checkdepends=('procps-ng')
+license=('PHP')
+url='http://www.php.net'
+#@@@PKGBUILD_END@@@
+
+_phpbs_set_vars() {
+    _cppflags=''
+    _phpbase="$1"
+    _suffix="$2"
+    
+    # Other stuff
+    _pkgver_icu=64-1
+    _build_fpm_user=http
+    _build_fpm_group=http
+    _build_icu_src_dir="icu/source"
+    # Priority
+    _priority_default=20
+    _priority_mysqlnd=10
+    _priority_pdo=10
+    _priority_opcache=10
+    _priority_xml=15
+    _priority_json=15
+    
+    _patches=()
+    _subpkg=()
+    
+    pkgrel=1
+
+    # Versions defintions
+    case "$_phpbase" in
+        81) 
+            pkgver=8.1.0  
+            pkgrel=5
+            ;;
+        80) pkgver=8.0.13 ;;
+        74) pkgver=7.4.26 ;;
+        73) pkgver=7.3.33 ;;
+        72) 
+            pkgver=7.2.34 
+            pkgrel=7
+            ;;        
+        71) pkgver=7.1.33 ;;
+        70) pkgver=7.0.33 ;;
+        56) pkgver=5.6.40 ;;
+        55) pkgver=5.5.38 ;;
+        54) pkgver=5.4.45 ;;
+        53) pkgver=5.3.29 ;;
+        *)
+            _phpbs_error_message "No such PHP version defined: ${_phpbase}!"
+            return 1;
+            ;;
+    esac
+    
+
+
+    # Magic comes here
+    _php_major_minor=$(echo "$pkgver" | grep -Eo '([0-9]+\.[0-9]+)')
+
+
+    # Use \$ escaped vars if u wanna substitute later in PKGBUILD itself!
+    pkgbase="php\${_phpbase}\${_suffix}"
+    pkgname=("\${pkgbase}")
+    pkgdesc="PHP \${pkgver} compiled as to not conflict with mainline php"
+    
+
+    
+    _phpconfig="\
+        --prefix=/usr \
+        --sbindir=/usr/bin \
+        --localstatedir=/var \
+        --with-layout=GNU \
+        --disable-debug \
+        --mandir=/usr/share/man \
+        --srcdir=../php-\${pkgver} \
+        --sysconfdir=/etc/php\${_phpbase}\${_suffix} \
+        --libdir=/usr/lib/php\${_phpbase}\${_suffix} \
+        --datadir=/usr/share/php\${_phpbase}\${_suffix} \
+        --program-suffix=\${_phpbase}\${_suffix} \
+        --with-config-file-path=/etc/php\${_phpbase}\${_suffix} \
+        --with-config-file-scan-dir=/etc/php\${_phpbase}\${_suffix}/conf.d \
+        --without-pear"        
+    if ((_phpbase > 53)); then
+        _phpconfig+=" --datarootdir=/usr/share/php\${_phpbase}\${_suffix} "
+    fi
+    _phpextensions+="\
+        --enable-bcmath=shared \
+        --with-bz2=shared,/usr \
+        --with-gmp=shared,/usr \
+        --enable-intl=shared \
+        --with-pspell=shared,/usr \
+        --with-snmp=shared,/usr \
+        --with-tidy=shared,/usr \
+        --enable-filter \
+        --with-readline \
+        --enable-pcntl \
+        --enable-calendar=shared \
+        --enable-ctype=shared \
+        --enable-exif=shared \
+        --enable-fileinfo=shared \
+        --enable-ftp=shared \
+        --with-gettext=shared,/usr \
+        --with-iconv=shared \
+        --enable-phar=shared \
+        --enable-posix=shared \
+        --enable-shmop=shared \
+        --enable-sockets=shared \
+        --enable-sysvmsg=shared \
+        --enable-sysvsem=shared \
+        --enable-sysvshm=shared \
+        --enable-tokenizer=shared \
+        --enable-mysqlnd=shared \
+        --enable-mysqlnd-compression-support \
+        --with-mysqli=shared,mysqlnd \
+        --with-pdo-mysql=shared,mysqlnd \
+        --with-mysql-sock=/run/mysqld/mysqld.sock \
+        --enable-dom=shared \
+        --enable-simplexml=shared \
+        --enable-xml=shared \
+        --enable-xmlreader=shared \
+        --enable-xmlwriter=shared \
+        --with-xsl=shared \
+        --enable-dba=shared \
+        --with-db4=/usr \
+        --with-gdbm \
+        --enable-inifile \
+        --enable-flatfile \
+        --with-imap=shared,/usr \
+        --with-kerberos \
+        --with-imap-ssl=yes \
+    "    
+
+    # Basic submodules. Cli shoud be first!
+    _subpkg+=('cli')
+    _subpkg+=('cgi' 'apache' 'fpm' 'embed')
+    _subpkg+=('bz2' 'bcmath' 'curl' 'dblib' 'dba' 'enchant' 'gd' 'gmp' 'imap' 'intl' 'interbase')
+    _subpkg+=('ldap' 'mysql' 'odbc' 'pgsql' 'pspell' 'snmp' 'soap' 'tidy' 'sqlite' 'xml' 'xsl' 'zip')
+
+    # Binary/conf names
+    if ((_phpbase >= 80)); then
+        # No libapache8.so, in PHP8.0+ just libapache etc
+        _suffix_so=''
+    else
+        _suffix_so="${_phpbase::1}";
+    fi
+
+    _build_apache_cfg="etc/httpd/conf/extra"
+    # 5.3 can't be built as newer versions, look build()
+    _build_per_sapi=$((_phpbase == 53))
+    _build_pear=1
+    # Segfaulting in 5.6 for me :(
+    _build_phpdbg=$((_phpbase > 56))
+    _build_json=$((_phpbase < 80))
+    # FFI appears first in 7.4, enable it
+    _build_ffi=$((_phpbase >= 74));
+    # These modules are not available since 7.4
+    _build_recode=$((_phpbase < 74));
+    _build_wddx=$((_phpbase < 74));
+    _build_interbase=$((_phpbase < 74));
+    _build_xmlrpc=$((_phpbase < 74));
+    # Always
+    _build_shared_gd=1
+    # Bug with external gd with PHP5 <= 5.4
+    _build_bundled_gd=$((_phpbase <= 54 && _phpbase >= 50))
+    # PHP 5.3 fails to build shared PDO with shared sqlite
+    _build_static_pdo=$((_phpbase <= 53 && _phpbase >= 50))
+    # Since 5.5 we have opcache
+    _build_opcache=$((_phpbase >= 55));
+    _build_sodium=$((_phpbase >= 72));
+    # invert sodium flag
+    _build_mcrypt=$((_build_sodium ^ 1));
+    # Db stuff
+    _build_outdated_mysql=$((_phpbase >= 50 && _phpbase <= 59))
+    _build_mssql=$((_phpbase >= 50 && _phpbase <= 59))
+    # End modules config
+
+    # Not all patches are ready now
+    _build_openssl_v11_patch=$((_phpbase >= 56 && _phpbase <= 59))
+    _build_openssl_v10_patch=$((_phpbase < 70 && _phpbase >= 53 && ! _build_openssl_v11_patch))
+    _build_uses_autoconf=$((! _build_openssl_v10_patch));
+    _build_with_custom_icu=$((_phpbase >= 53 && _phpbase <= 54));
+
+
+    if ((_phpbase >= 53 && _phpbase <= 54)); then
+        source+=("https://php.net/distributions/php-\${pkgver}.tar.bz2")
+    else
+        source+=("https://php.net/distributions/php-\${pkgver}.tar.xz")
+    fi
+
+    # Sources
+    source+=(
+        "pear-config-patcher.php"
+        "php-apache.conf"
+    )
+
+    if ((_build_with_custom_icu)); then
+        source+=('https://github.com/unicode-org/icu/releases/download/release-${_pkgver_icu}/icu4c-${_pkgver_icu/-/_}-src.tgz')
+    fi
+    # Process BUILD stuff
+    if ((_build_mcrypt)); then
+        _subpkg+=('mcrypt')
+    fi
+    if ((_build_phpdbg)); then
+        _subpkg+=('phpdbg')
+    fi
+    if ((_build_pear)); then
+        _subpkg+=('pear')
+    fi
+    if ((_build_xmlrpc)); then
+        _subpkg+=('xmlrpc')
+    fi
+    if ((_build_opcache)); then
+        _subpkg+=('opcache')
+    fi
+    if ((_build_sodium)); then
+        _subpkg+=('sodium')
+    fi
+    if ((_build_recode)); then
+        _subpkg+=('recode')
+    fi
+    if ((_build_json)); then
+        _subpkg+=('json')
+    fi
+    if ((_build_openssl_v11_patch)); then
+        _patches+=("openssl-1.1.patch")
+    elif ((_build_openssl_v10_patch)); then
+        _patches+=("openssl-1.0.patch")
+    fi
+    if ((_build_openssl_v10_patch && _phpbase <= 54)); then
+        _patches+=("openssl-sslv3.patch")
+    fi
+
+    if ((_phpbase >= 54 && _phpbase <= 59)); then
+        # PHP >= 5.4 && PHP < 7: Upgrade sqlite lib to 3.28
+        _patches+=("sqlite-3.28-php5.4.patch")
+    fi
+
+    if ((56 == _phpbase)); then
+        # Defensive mode for sqlite
+        _patches+=("sqlite-defensive-php5.6.patch")
+    elif ((70 == _phpbase)); then
+        # Defensive mode for sqlite
+        _patches+=("sqlite-defensive-php7.0.patch")
+        # PHP == 7.0: Upgrade sqlite lib to 3.28
+        _patches+=("sqlite-3.28-php7.0.patch")
+    elif ((53 == _phpbase)); then
+        _patches+=("cve-php5.3.patch")
+        _patches+=("mpm-apache.patch")
+    fi
+
+    if ((_phpbase >= 53 && _phpbase <= 73)); then
+        # Useful patches: possibility ti use GID/UID
+        # instead of username/group for fpm
+        # and reload on sighup
+        _patches+=("fpm-numeric-uid-gid.patch")
+        _patches+=("fpm-reload-sighup.patch")
+    fi
+
+    if ((_phpbase >= 50 && _phpbase <= 70)); then
+        _patches+=("mysql-socket-php5.3.patch")
+    elif ((_phpbase >= 71 && _phpbase <= 79)); then
+        _patches+=("mysql-socket-php7.1.patch")
+    fi
+
+    if ((_phpbase >= 53 && _phpbase <= 73)); then
+        # Enchant 2 support patches for PHP >= 5.3 and PHP < 7.4
+        _patches+=("php-enchant-php5.3.patch")
+        _patches+=("php-enchant-depr.patch");
+    elif ((74 == _phpbase)); then
+        # Enchant 2 support patch for PHP == 7.4
+        _patches+=("enchant-php7.4.patch")
+    fi
+
+    if ((_phpbase >= 54 && _phpbase <= 73)); then
+        _patches+=("php-freetype-2.9.1.patch")
+    fi
+
+    if ((_phpbase >= 55 && _phpbase <= 72)); then
+        _patches+=("php-icu-php5.5.patch")
+    elif ((73 == _phpbase)); then
+        _patches+=("php-icu-php7.3.patch")
+    fi
+
+    if ((_phpbase >= 54 && _phpbase <= 73)); then
+        _patches+=("recode-php5.4.patch")
+    elif ((_phpbase == 53)); then
+        _patches+=("recode-php5.3.patch")
+    fi
+    if ((_phpbase >= 55 && _phpbase <= 59)); then
+        _patches+=("php-opcache-lockfile-path.patch")
+    fi
+
+    if ((_phpbase >= 53 && _phpbase <= 59)); then
+        _patches+=("php-mysqlnd-charsets.patch")
+        _patches+=("php-mysqlnd.patch")
+    fi
+
+    if ((_phpbase >= 53 && _phpbase <= 54)); then
+        _patches+=("php-tests.patch")
+    fi
+
+
+    if ((_phpbase >= 53 && _phpbase <= 81)); then
+        # Include CVEs and other useful patches from debian
+        _patches+=("debian-php-${pkgver}.patch")
+    fi
+    _patches+=('php-phpinfo.patch')
+    if ((_build_uses_autoconf)); then
+        # This is useful debian patch for autodetection of timezone
+        # AND linking with system tzdata instead of bundled
+        _use_system_timezonedb=1
+        _patches+=("timezonedb-guess.patch")
+        _patches+=("timezonedb-php${_php_major_minor}.patch")
+    fi
+        
+    if (( ! _build_openssl_v10_patch || ! _build_with_custom_icu)); then
+        _phpconfig+=" --disable-rpath "
+    fi
+    if ((_phpbase > 53)); then
+        _phpconfig+=" --config-cache "
+    fi
+    if ((_use_system_timezonedb)); then
+        _phpconfig+=" --with-system-tzdata "
+    fi
+
+    if ((_build_json)); then
+        _phpextensions+=" --enable-json=shared "
+    fi
+    if ((_phpbase >= 80)); then
+        _phpextensions+=" --with-password-argon2 "
+    fi
+    if ((_build_recode)); then
+        _phpextensions+=" --with-recode=shared "
+    fi
+    if ((_build_ffi)); then
+        _phpextensions+=" --with-ffi=shared "
+    fi
+    if ((_phpbase >= 74)); then
+        _phpextensions+=" --with-zip=shared "
+        _phpextensions+=" --with-curl=shared "
+        _phpextensions+=" --with-enchant=shared "
+        _phpextensions+=" --with-pcre-jit "
+        _phpextensions+=" --with-external-pcre=/usr "
+        _phpextensions+=" --with-openssl "
+        # odbc pdo_odbc
+        _phpextensions+="\
+            --with-unixODBC=shared \
+            --with-pdo-odbc=shared,unixODBC,/usr \
+            "
+        _phpextensions+="\
+            --with-ldap=shared,/usr \
+            --with-ldap-sasl \
+            "
+        # sqlite3 pdo_sqlite
+        _phpextensions+="\
+            --with-pdo-sqlite=shared,/usr \
+            --with-sqlite3=shared \
+            "
+    else
+        _phpextensions+=" --enable-zip=shared "
+        _phpextensions+=" --with-curl=shared,/usr  "
+        _phpextensions+=" --with-enchant=shared,/usr "
+        _phpextensions+=" --with-pcre-regex=/usr "
+        _phpextensions+=" --with-openssl=/usr "
+        # odbc pdo_odbc
+        _phpextensions+="\
+            --with-unixODBC=shared,/usr \
+            --with-pdo-odbc=shared,unixODBC,/usr \
+            "
+        _phpextensions+="\
+            --with-ldap=shared,/usr \
+            --with-ldap-sasl=/usr \
+            "
+        # sqlite3 pdo_sqlite
+        _phpextensions+="\
+            --with-pdo-sqlite=shared,/usr \
+            --with-sqlite3=shared,/usr \
+            "
+        _phpextensions+="\
+            --enable-hash \
+            --with-mhash=/usr \
+            "
+    fi
+
+
+    _with_gd_word="--with-gd"
+    if ((_phpbase >= 74)); then
+        _with_gd_word="--enable-gd"
+    fi
+
+    if (( ! _build_shared_gd && _build_bundled_gd )); then
+            _phpextensions+=" ${_with_gd_word} "
+    elif (( _build_shared_gd && _build_bundled_gd )); then
+            _phpextensions+=" ${_with_gd_word}=shared "
+    elif (( _build_shared_gd && ! _build_bundled_gd )); then
+        if ((_phpbase >= 74)); then
+            _phpextensions+=" ${_with_gd_word}=shared --with-external-gd=/usr "
+        else
+            _phpextensions+=" ${_with_gd_word}=shared,/usr "
+        fi
+    else
+        if ((_phpbase >= 74)); then
+            _phpextensions+=" --${_with_gd_word} -with-external-gd=/usr "
+        else
+            _phpextensions+=" ${_with_gd_word}=/usr "
+        fi
+    fi
+
+    if ((_phpbase < 72)); then
+        _phpextensions+=" --enable-gd-native-ttf "
+    fi
+    if ((_phpbase >= 55 && _phpbase < 72)); then
+        _phpextensions+=" --with-vpx-dir=/usr "
+    fi
+    if ((_phpbase >= 74)); then
+        _phpextensions+="\
+            --with-jpeg \
+            --with-xpm \
+            --with-webp \
+            --with-freetype \
+            "
+    else
+        # PHP 5.3 and 5.4 says --with-webp-dir is not recognized, but it does recognize it
+        # gd.so can't work normally if no webp is defined!
+        # --with-gd=shared also should be enabled for them to build fine
+        _phpextensions+="\
+            --with-webp-dir=/usr \
+            --with-jpeg-dir=/usr \
+            --with-png-dir=/usr \
+            --with-xpm-dir=/usr \
+            --with-freetype-dir=/usr \
+            "
+    fi
+
+
+    if ((_phpbase > 55 && _phpbase < 74)); then
+        _phpextensions+=" --with-libzip=/usr "
+    fi
+
+    if ((_build_static_pdo)); then
+        _phpextensions+=" --enable-pdo "
+    else
+        _phpextensions+=" --enable-pdo=shared "
+    fi
+
+    # mysqlnd mysqli pdo_mysql
+
+    if ((_phpbase < 70)); then
+        _phpextensions+=" --with-zlib-dir=/usr "
+    else
+        _phpextensions+=" --with-zlib"
+    fi
+
+    if ((_build_outdated_mysql)); then
+        _phpextensions+=" --with-mysql=shared,mysqlnd "
+    fi
+
+    # dom simplexml wddx xml xmlreader xmlwriter xsl
+
+
+    if ((_build_wddx)); then
+        _phpextensions+=" --enable-wddx=shared "
+    fi
+
+    # --without-gdbm \
+    # --with-qdbm=/usr \
+    # interbase pdo_firebird
+    # requires: libfbclient
+    _phpextensions+=" --with-pdo-firebird=shared,/usr "
+    if ((_build_interbase)); then
+        _phpextensions+=" --with-interbase=shared,/usr "
+    fi
+
+    # pgsql pdo_pgsql
+    _phpextensions+="\
+        --with-pgsql=shared,/usr \
+        --with-pdo-pgsql=shared,/usr \
+        "
+    _phpextensions+="\
+        --enable-soap=shared \
+        "
+    if ((_phpbase < 74)); then
+        _phpextensions+=" --with-libxml-dir=/usr "
+    fi
+
+    if ((_build_opcache)); then
+        _phpextensions+="\
+            --enable-opcache \
+            --enable-huge-code-pages \
+            "
+    fi
+
+    if ((_build_mcrypt)); then
+        _phpextensions+=" --with-mcrypt=shared "
+    fi
+
+    if ((_build_xmlrpc)); then
+        _phpextensions+=" --with-xmlrpc=shared "
+    fi
+
+    if ((_build_sodium)); then
+        _phpextensions+=" --with-sodium=shared "
+    fi
+
+    _phpextensions+=" --enable-mbstring=shared "
+
+    if ((_phpbase > 53)); then
+        # 5.3 fails to be built with mbregex
+        _phpextensions+=" --enable-mbregex "
+    fi
+    if ((_phpbase < 74)); then
+        _phpextensions+=" --enable-mbregex-backtrack "
+    fi
+    # pdo_dblib mssql modules
+    _phpextensions+=" --with-pdo-dblib=shared,/usr "
+    if ((_build_mssql)); then
+        _phpextensions+=" --with-mssql=shared,/usr "
+    fi
+
+    _phpextensions_fpm=""
+    _phpextensions_fpm+=" --with-fpm-user=\${_build_fpm_user} "
+    _phpextensions_fpm+=" --with-fpm-group=\${_build_fpm_group} "
+    if ((_phpbase > 54)); then
+        # Systemd support for fpm notifications is broken for PHP > 5.4
+        _phpextensions_fpm+=" --with-fpm-systemd "
+    fi
+    if ((_phpbase > 55)); then
+        _phpextensions_fpm+=" --with-fpm-acl "
+    fi
+
+    _cppflags=' -DU_USING_ICU_NAMESPACE=1 '
+    if ((_phpbase >= 53 && _phpbase <= 55)); then
+        # Openssl 1.0.x in Arch doesn't have SSLv3 support compiled
+        _cppflags+=' -DOPENSSL_NO_SSL3=1 '
+        _cppflags+=' -DOPENSSL_NO_SSL2=1 '
+    fi
+    if ((_phpbase < 80)); then
+        # PHP 5 and 7 need this stuff
+        _cppflags+=' -DU_DEFINE_FALSE_AND_TRUE=1 '
+    fi
+    # Append patches to source :)
+    source+=("${_patches[@]}")
+    for i in "${_subpkg[@]}"; do
+        pkgname+=("php\${_phpbase}-${i}\${_suffix}")
+    done
+}
+
+_phpbs_dump_array() {
+    local name="$1[@]"
+    echo "$1=(" >> "${2}"
+    for i in "${!name}"; do
+        echo -e "    \"$i\"" >> "${2}";
+    done
+    echo -e ")" >> "${2}";
+}
+_phpbs_dump_string() {
+    local name="${1}"
+    echo -e "$name=\"${!name}\"" >> "${2}";
+}
+_phpbs_dump_string_compacted() {
+    local name="${1}"
+    local data="${!name}"
+    local app='='
+    if [[ $3 == "append" ]]; then
+        app="+${app}"
+    fi
+    echo -e "$name$app\"\\\\\n$(echo "$data" | sed -E "s/^[\t ]+//g; s/[\t ]+$//g; s/[\t ]+/ \\\\\n/g" | sed -E "s/^(--.*)$/    \1/g")\"" >> "${2}";
+}
+_phpbs_cat_pkgbuild_vars() {
+    echo > "${1}"
+    local _arr_vars=('_phpbase' '_suffix' 'pkgver' 'pkgrel' 'pkgbase' 'pkgdesc' '_cppflags')
+    for i in "${_arr_vars[@]}"; do
+        _phpbs_dump_string "${i}" "$1";
+    done    
+    echo >> "${1}"
+    declare -p | awk '{ print $3; }' | grep -E '^_(suffix|pkgver)'  >> "$1"
+    echo >> "${1}"    
+    _arr_vars=('pkgname' 'source' 'depends' 'checkdepends' 'arch' '_patches')
+    for i in "${_arr_vars[@]}"; do
+        _phpbs_dump_array "${i}" "$1"
+        echo >> "${1}"
+    done
+    declare -p | awk '{ print $3; }' | grep -E '^_(build|priority)'  >> "$1"    
+    _arr_vars=('_phpextensions' '_phpconfig' '_phpextensions_fpm')
+    for i in "${_arr_vars[@]}"; do
+        _phpbs_dump_string_compacted "${i}" "$1"
+        echo >> "${1}"
+    done
+    echo >> "${1}"
+}
+
+_phpbs_error_message() {
+    echo -e "\e[31mError: ${1}\e[0m";
+}
+_phpbs_mode_message() {
+    echo -e "\e[33m[MODE] ${1}\e[0m"
+}
+_phpbs_build_message() {
+    echo -e "\e[33m[BUILD] ${1}\e[0m"
+}
+_phpbs_info_message() {
+    echo -e "[\e[32mINFO\e[0m] ${1}\e[0m"
+}
+
+_phpbs_help_message() {
+    echo -e "[\e[32mHELP\e[0m] ${1}\e[0m"
+}
+
+_phpbs_cmd_message() {
+    echo -e "[\e[34mCMD\e[0m] ${1}\e[0m"
+}
+_phpbs_dir_message() {
+    echo -e "[\e[34mDIR\e[0m] ${1}\e[0m"
+}
+
+_phpbs_create_dir() {
+    if [ ! -d "${1}" ]; then
+        mkdir -p "${1}";
+    fi
+    if [ ! -d "${1}" ]; then
+        _phpbs_error_message "Cannot create/find directory ${1}"
+        exit 1;
+    fi
+}
+
+_phpbs_process_package() {
+    local phpbase=${1}
+    local suffix=${2}
+    local source_file="$BASH_SOURCE"
+    package_name="php${phpbase}${suffix}"
+    local newbuildfile='';
+    _phpbs_mode_message "Building ${package_name}"
+    newbuildfile=$(mktemp "phpbuilder.XXXXXX")
+    if [[ $? -ne 0 ]]; then
+        _phpbs_error_message "Cannot create temp file";
+        exit 1;
+    fi
+    _phpbs_info_message "Using temporary PKGBUILD file ${newbuildfile} for ${package_name}"
+    echo > "${newbuildfile}"
+    if [[ $? -ne 0 ]]; then
+        _phpbs_error_message "Cannot write to ${newbuildfile}";
+        exit 1;
+    fi
+    _phpbs_set_vars "${phpbase}" "${suffix}"
+    if [[ $? -ne 0 ]]; then
+        rm -f "${newbuildfile}"
+        exit $?
+    fi
+    _phpbs_cat_pkgbuild_vars "${newbuildfile}";
+    cat "${source_file}" |  awk $(echo "/#@PKGBUILD_START@/,/#@PKGBUILD_END@/" | sed 's/@/@@@/g') >> ${newbuildfile}
+    sed "s/___PHPBASE___/${phpbase}/g; s/___SUFFIX___/${suffix}/g; s/[\t ]*$//g; s/\t/    /g ; s/^#@@@PKG.*$//g" \
+        -i "${newbuildfile}";
+
+    builddir=$(mktemp -d "phpbuilder.XXXXXX")
+    if [[ $? -ne 0 ]]; then
+        _phpbs_error_message "Cannot create temp dir for ${package_name}";
+        exit 1;
+    fi
+    if ((build_sourcepkg)); then
+        _phpbs_info_message "Updating PKGBUILD ${newbuildfile} with sums for ${package_name}"
+        BUILDDIR="${builddir}" \
+            makepkg -g -p "${newbuildfile}" >> "${newbuildfile}"
+        if [[ $? -ne 0 ]]; then
+            _phpbs_error_message "Error while building package sums file for ${package_name}";
+            _phpbs_cmd_message "Last command: makepkg -g -p ${newbuildfile} >> ${newbuildfile}";
+            _phpbs_dir_message "Last builddir: ${builddir}"
+            exit 1;
+        fi
+        _phpbs_info_message "Building source package from ${newbuildfile} for ${package_name}"
+        BUILDDIR="${builddir}" \
+            makepkg -Sf -p "${newbuildfile}"
+        if [[ $? -ne 0 ]]; then
+            _phpbs_error_message "Error while building source package";
+            _phpbs_dir_message "Last buildfile: ${newbuildfile}";
+            _phpbs_dir_message "Last builddir: ${builddir}"
+            exit 1;
+        fi
+    fi
+    _phpbs_info_message "Building binary package from ${newbuildfile} for ${package_name}"
+    if ((_phpbs_build_sumsfile)); then
+        BUILDDIR="${builddir}" \
+            makepkg --nocheck -Lsfc -p "${newbuildfile}"
+    else
+        BUILDDIR="${builddir}" \
+            makepkg --skipinteg --nocheck -Lsfc -p "${newbuildfile}"
+    fi
+    if [[ $? -eq 0 ]];
+        then rm -rf "${builddir}" "${newbuildfile}";
+    else
+        _phpbs_error_message "Error while building binary package";
+        _phpbs_dir_message "Last buildfile: ${newbuildfile}";
+        _phpbs_dir_message "Last builddir: ${builddir}"
+        exit 1;
+    fi
+}
+
+
+# Start PHPBS
+_phpbs_join() {
+    local d=${1-} f=${2-};
+    if shift 2; then
+        printf %s "$f" "${@/#/$d}";
+    fi;
+}
+
+_phpbs_main() {
+    local _phpbs_packages_8=(81 80)
+    local _phpbs_packages_7=(74 73 72 71 70)
+    local _phpbs_packages_5=(56 55 54 53)
+    local _phpbs_all_packages=(${_phpbs_packages_8[@]} ${_phpbs_packages_7[@]} ${_phpbs_packages_5[@]})
+    local _phpbs_build_sumsfile=0
+    local _args_preselected=()
+    local phpbase='';
+    local suffix="${_phpbs_suffix}";
+    local package_argument='';
+    export SRCPKGDEST="${SRCPKGDEST:-packages-src}"
+    export PKGDEST="${PKGDEST:-packages}"
+    export LOGDEST="${LOGDEST:-logs}"
+    export SRCDEST="${SRCDEST:-sources}"
+    positional=()
+
+    local package_argument=("${_phpbs_selected_packages[@]}")
+    local _filtered_pkgs=()
+    for i in "${package_argument[@]}"; do
+        i=$(echo "$i" | grep -i -E -o '^(php)?([0-9]{1}(\.)?[0-9]{1})$' | sed -E 's/[^0-9]+//g')
+        if [[ ! " ${_args_preselected[*]} " =~ " ${i} " ]]; then
+            _args_preselected+=("${i}")
+        fi
+    done
+    package_argument=(${_args_preselected[*]})
+    _counter="${#package_argument[@]}"
+    if [[ $_counter -eq 0 ]]; then
+        _phpbs_error_message "No valid package versions provided"
+        _phpbs_run_help
+        exit 1;
+    fi
+    _phpbs_create_dir "${SRCPKGDEST}"
+    _phpbs_create_dir "${PKGDEST}"
+    _phpbs_create_dir "${LOGDEST}"
+    _phpbs_create_dir "${SRCDEST}"
+    _phpbs_info_message "Candidates to be built: \e[32m$(_phpbs_join ', ' ${package_argument[@]})\e[0m"
+    if [[ $suffix != "" ]]; then
+        _phpbs_info_message "Suffix used: ${suffix}"
+    fi
+    _phpbs_info_message "Packages will be built to: \e[32m${PKGDEST}\e[0m"
+    if ((build_sourcepkg)); then
+        _phpbs_info_message "Source packages will be built to: \e[32m${SRCPKGDEST}\e[0m"
+    fi
+    _phpbs_info_message "Logs will be written to: \e[32m${LOGDEST}\e[0m"
+    _phpbs_info_message "Additional source code downloaded to: \e[32m${SRCDEST}\e[0m"
+    for phpbase in "${package_argument[@]}"; do
+        #IFS="@" read phpbase suffix <<<$(echo -e "${i}")
+        _phpbs_process_package "${phpbase}" "${suffix}"
+    done
+    _phpbs_info_message "Packages are built to: \e[32m${PKGDEST}\e[0m"
+    _phpbs_info_message "Source packages are be built to: \e[32m${SRCPKGDEST}\e[0m"
+}
+
+
+_phpbs_run_help() {
+    _phpbs_help_message "ArchLinux phpbs welcomes you"
+    _phpbs_help_message ""
+    _phpbs_help_message "Plenty of combination of targets are available"
+    _phpbs_help_message ""
+    _phpbs_help_message "For example:"
+    _phpbs_help_message ""
+    _phpbs_help_message "To build single PHP 8.1: \e[32mmake php81\e[0m"
+    _phpbs_help_message ""
+    _phpbs_help_message "To build PHP 5.x (5.6, 5.4, 5.3) and 7.1: \e[32mmake php5 php71\e[0m"
+    _phpbs_help_message ""
+    _phpbs_help_message "To build 8.1 all 7.x: \e[32mmake php81 php7\e[0m"
+    _phpbs_help_message ""
+    _phpbs_help_message "To build all versions: \e[32mmake all\e[0m"
+    _phpbs_help_message ""
+    _phpbs_help_message "To clean and build all versions: \e[32mmake clean all\e[0m"
+    _phpbs_help_message ""
+    _phpbs_help_message "To clean: \e[32mmake clean\e[0m"
+    exit 0
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    _phpbs_selected_packages=()
+    while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+        -h|help|--help*)
+            _phpbs_run_help
+            shift;
+            ;;
+        all)
+            _phpbs_selected_packages+=(81 80)
+            _phpbs_selected_packages+=(74 73 72 71 70)
+            _phpbs_selected_packages+=(56 55 54 53)
+            shift
+            ;;
+        php8)
+            _phpbs_selected_packages+=(81 80)
+            shift
+            ;;
+        php7)
+            _phpbs_selected_packages+=(74 73 72 71 70)
+            shift
+            ;;
+        php5)
+            _phpbs_selected_packages+=(56 55 54 53)
+            shift
+            ;;
+        php*)
+            _phpbs_selected_packages+=($1)
+            shift
+            ;;
+        --suffix=*)
+            _phpbs_suffix="$(echo $1 | sed -E 's/--suffix=//g')"
+            shift
+            ;;
+        --sources=*)
+            #build_sourcepkg="$(echo $1 | sed -E 's/--sources=//g')"
+            build_sourcepkg=1
+            shift
+            ;;
+        *)
+            positional+=("$1")
+            shift
+            ;;
+    esac
+    done
+    set -- "${positional[@]}"
+    #_phpbs_info_message "Candidates to be built: \e[32m$(_phpbs_join ', ' ${_phpbs_selected_packages[@]})\e[0m"
+    _phpbs_main
+
+fi
+
+#@@@PKGBUILD_START@@@
+# Prepare it
+prepare() {
+    pushd "php-${pkgver}"
+    echo "[SED] sapi/apache2handler/config.m4 and configure"
+    sed -e '/APACHE_THREADED_MPM=/d' \
+        -i sapi/apache2handler/config.m4 \
+        -i configure
+
+    echo "[SED] sapi/fpm/Makefile.frag"
+    sed -e 's#php-fpm\$(program_suffix)#php\$(program_suffix)-fpm#' \
+        -e 's/.conf.default/.conf/g' \
+        -i sapi/fpm/Makefile.frag
+
+    echo "[SED] sapi/fpm/php-fpm.service.in"
+    sed -E "s|ExecStart[\s]?=[\s]?@([a-zA-Z_]+)@/php-fpm|ExecStart=@\1@/php${_phpbase}${_suffix}-fpm|g; \
+            s|PIDFile[\s]?=[\s]?@([a-zA-Z_]+)@/run/php-fpm.pid|PIDFile=/run/php${_phpbase}${_suffix}-fpm/php-fpm.pid|g" \
+        -i sapi/fpm/php-fpm.service.in
+
+    local _check_files=("sapi/fpm/www.conf.in" "sapi/fpm/php-fpm.conf.in");
+    for file_conf in "${_check_files[@]}"; do
+        if [[ ! -f $file_conf  ]]; then
+            continue;
+        fi
+        echo "[SED] ${file_conf}"
+        sed -e "s#^listen =.*#listen = /run/php${_phpbase}${_suffix}-fpm/php-fpm.sock#" \
+            -e "s#run/php-fpm.pid#/run/php${_phpbase}${_suffix}-fpm/php-fpm.pid#" \
+            -e 's#^;*[ \t]*listen.owner =#listen.owner =#' \
+            -e 's#^;*[ \t]*listen.group =#listen.group =#' \
+            -e 's#^;*[ \t]*error_log =.*#error_log = syslog#' \
+            -e 's#^;*[ \t]*chdir =.*#;chdir = /srv/http#' \
+            -i "${file_conf}"
+    done
+
+    echo "[SED] php.ini-production"
+    sed -e 's#^;*[ \t]*extension_dir[\t ]*=.*/.*$#extension_dir = "___EXTENSIONDIR___"#' \
+        -e "s#___EXTENSIONDIR___#/usr/lib/php${_phpbase}${_suffix}/modules#g" \
+        -e "s#^;*[ \t]*extension=#;extension=#g" \
+        -i php.ini-production
+
+    for patch_name in "${_patches[@]}"; do
+        echo "[PATCH] Applying source patch ${patch_name}";
+        patch -p1 -i "../${patch_name}"
+    done
+    if ((_build_uses_autoconf)); then
+        autoconf
+    fi     
+    echo "[SED] Sed for ${pkgdir}/usr/lib/php${_phpbase}${_suffix}/scripts/phpize.m4"
+    sed -i "/^\[  --with-php-config=/c \[  --with-php-config=PATH  Path to php-config [php-config${_phpbase}${_suffix}]], php-config${_phpbase}${_suffix}, no)" "scripts/phpize.m4"
+    rm -f tests/output/stream_isatty_*.phpt
+    rm -f Zend/tests/arginfo_zpp_mismatch*.phpt
+    popd
+}
+
+# BUILD them all
+build() {
+    export EXTENSION_DIR="/usr/lib/php${_phpbase}${_suffix}/modules"
+    if ((_build_openssl_v10_patch)); then
+        export PHP_OPENSSL_DIR="/usr/lib/openssl-1.0"
+    fi
+
+    if ((_build_with_custom_icu)); then
+        local _php5_icu_first="${srcdir}/${_build_icu_src_dir}/php${_phpbase}${suffix}-icu${_pkgver_icu}"
+        _ldflags="-Wl,-rpath=$ORIGIN/usr/lib/php${_phpbase}${_suffix}/icu${_pkgver_icu}/lib"
+        _phpextensions+=" --with-icu-dir=${_php5_icu_first} "
+        if [[ ! -d $_php5_icu_first ]]; then
+            mkdir -p "${_php5_icu_first}"
+        fi
+        pushd "${_build_icu_src_dir}"
+        ./configure --prefix="${_php5_icu_first}" \
+            --sysconfdir="${_php5_icu_first}/etc" \
+            --mandir="${_php5_icu_first}/share/man" \
+            --sbindir="${_php5_icu_first}/bin" \
+            --libdir="${_php5_icu_first}/lib" \
+            --includedir="${_php5_icu_first}/include" \
+            --disable-tests \
+            --disable-debug
+        make
+        make install
+        ./configure --prefix="/usr/lib/php${_phpbase}${_suffix}/icu${_pkgver_icu}" \
+            --sysconfdir="/usr/lib/php${_phpbase}${_suffix}/icu${_pkgver_icu}/etc" \
+            --mandir="/usr/lib/php${_phpbase}${_suffix}/icu${_pkgver_icu}/share/man" \
+            --sbindir="/usr/lib/php${_phpbase}${_suffix}/icu${_pkgver_icu}/bin" \
+            --libdir="/usr/lib/php${_phpbase}${_suffix}/icu${_pkgver_icu}/lib" \
+            --includedir="/usr/lib/php${_phpbase}${_suffix}/icu${_pkgver_icu}/include" \
+            --disable-tests \
+            --disable-debug
+        make
+        popd
+    fi
+
+    if [[ ! -z "${_cppflags}" ]]; then
+        CPPFLAGS+=" $_cppflags "
+    fi
+    if [[ ! -z "${_ldflags}" ]]; then
+        LDFLAGS+=" $_ldflags "
+    fi
+
+
+    echo "[DEBUG] CPPFLAGS ${_cppflags}"
+    echo "[DEBUG] LDGFLAGS ${_ldflags}"
+    echo "[DEBUG] PHPCONF  ${_phpconfig}" | sed -E 's|[ \t]+|\n|g';
+    echo "[DEBUG] PHPEXT ${_phpextensions}" | sed -E 's|[ \t]+|\n |g';
+    echo "[DEBUG] FPMEXT ${_phpextensions_fpm}" | sed -E 's|[ \t]+|\n|g';
+
+    if [[ ! -d "build" ]]; then
+        mkdir "build"
+    fi
+
+    pushd "build"
+    if [[ -L configure ]]; then
+        rm configure
+    fi
+
+    ln -s "../php-${pkgver}/configure"
+    popd
+    if (( ! _build_per_sapi )); then
+        # SAPIs: cli+cgi+fpm+embed
+        pushd "build"
+            ./configure ${_phpconfig} \
+                --enable-cgi \
+                --enable-fpm \
+                ${_phpextensions_fpm} \
+                --enable-embed=shared \
+                ${_phpextensions}
+            make
+        popd
+    else
+        # Per sapi build: cli,cgi,fpm,embed
+
+        # cli
+        pushd "build"
+            ./configure ${_phpconfig} \
+                --disable-cgi \
+                ${_phpextensions}
+            make
+        popd
+        # cgi
+        cp -Ta build build-cgi
+        pushd build-cgi
+            ./configure ${_phpconfig} \
+                --disable-cli \
+                --enable-cgi \
+                ${_phpextensions}
+            make
+        popd
+
+        # fpm
+        cp -Ta build build-fpm
+        pushd build-fpm
+            ./configure ${_phpconfig} \
+                --disable-cli \
+                --enable-fpm \
+                ${_phpextensions_fpm} \
+                ${_phpextensions}
+            make
+        popd
+
+
+        # embed
+        cp -Ta build build-embed
+        pushd build-embed
+            ./configure ${_phpconfig} \
+                --disable-cli \
+                --enable-embed=shared \
+                ${_phpextensions}
+            make
+        popd
+    fi
+
+    # apache build
+    cp -a "build" "build-apache"
+    pushd "build-apache"
+        ./configure ${_phpconfig} \
+            --with-apxs2 \
+            ${_phpextensions}
+        make
+    popd
+
+    # phpdbg build
+    if ((_build_phpdbg)); then
+        cp -a "build" "build-phpdbg"
+        pushd "build-phpdbg"
+            ./configure ${_phpconfig} \
+                --enable-phpdbg \
+                ${_phpextensions}
+            make
+        popd
+    fi
+
+    # PEAR build
+    if ((_build_pear)); then
+        cp -a "build" "build-pear"
+        # Pear can't be built properly with shared xml
+        local _ext_pear=$(echo ${_phpextensions} | sed 's/--enable-xml=shared/--enable-xml/g')
+        export PEAR_INSTALLDIR="/usr/share/php${_phpbase}${_suffix}/pear"
+        pushd "build-pear"
+            ./configure ${_phpconfig} \
+                --disable-cgi \
+                --with-pear \
+                ${_ext_pear}
+            make
+        popd
+    fi
+    unset EXTENSION_DIR
+}
+
+check() {
+    pushd "php-${pkgver}"
+    # Check if sendmail was configured correctly (FS#47600)
+    ../build/sapi/cli/php -n -r 'echo ini_get("sendmail_path");' | grep -q '/usr/bin/sendmail'
+
+    export REPORT_EXIT_STATUS=1
+    export NO_INTERACTION=1
+    export SKIP_ONLINE_TESTS=1
+    export SKIP_SLOW_TESTS=1
+
+    if ((_phpbase <= 54)); then
+        TEST_PHP_EXECUTABLE="../build/sapi/cli/php" \
+            ../build/sapi/cli/php -n run-tests.php -n {tests,Zend}
+    elif ((_phpbase >= 55 && _phpbase < 73)); then
+        ../build/sapi/cli/php -n run-tests.php -n -P {tests,Zend}
+    elif ((73 == _phpbase)); then
+        export TESTS='tests Zend'
+        make test
+    elif ((_phpbase > 73)); then
+        export TEST_PHP_ARGS="-j$(nproc)"
+        export TESTS='tests Zend'
+        make test
+    fi
+    popd
+}
+
+# Custom code
+_install_module_ini() {
+    local extension=$(echo "${1}" | sed 's/\.so//')
+    local priority="${_priority_default}"
+    case "${extension}" in
+        "json")
+            priority="${_priority_json}"
+            ;;
+        "xml")
+            priority="${_priority_xml}"
+            ;;
+        "mysqlnd")
+            priority="${_priority_mysqlnd}"
+            ;;
+        "pdo")
+            priority="${_priority_pdo}"
+            ;;
+        "opcache")
+            priority="${_priority_opcache}"
+            ;;
+    esac
+    local extension_type="extension"
+    case "${extension}" in
+        "opcache" | "xdebug")
+            extension_type="zend_extension"
+            ;;
+        "recode")
+            extension_type=";extension"
+            ;;
+    esac
+
+    if [[ ! -d "${pkgdir}/etc/php${_phpbase}${_suffix}/conf.d" ]]; then
+        mkdir -p "${pkgdir}/etc/php${_phpbase}${_suffix}/conf.d"
+    fi
+    echo "${extension_type}=${extension}.so" > "${pkgdir}/etc/php${_phpbase}${_suffix}/conf.d/${priority}-${extension}.ini"
+    chmod 0644 "$pkgdir/etc/php${_phpbase}${_suffix}/conf.d/${priority}-${extension}.ini"
+    _last_priority=${priority}
+    _last_extension=${extension}
+}
+
+_install_module() {
+    install -D -m755 "build/modules/${1}.so" "${pkgdir}/usr/lib/php${_phpbase}${_suffix}/modules/${1}.so";
+    _install_module_ini "${1}"
+}
+# Custom code end
+
+package_php___PHPBASE______SUFFIX___() {
+    # Binary names
+    pkgdesc='A general-purpose scripting language that is especially suited to web development'
+    depends=('zlib' 'pcre' 'oniguruma' 'readline' 'argon2')
+    if ((_build_openssl_v10_patch)); then
+        depends+=("openssl-1.0")
+    else
+        depends+=("openssl")
+    fi
+    backup=("etc/php${_phpbase}${_suffix}/php.ini")
+    if ((_build_with_custom_icu)); then
+        pushd "${_build_icu_src_dir}"
+        make DESTDIR="${pkgdir}" install
+        make clean
+        popd
+        pushd "${pkgdir}/usr/lib/php${_phpbase}${_suffix}/icu${_pkgver_icu}"
+        rm -rf bin include share
+        popd
+    fi
+    pushd "build"
+    make -j1 INSTALL_ROOT=${pkgdir} install-{modules,build,headers,programs,pharcmd}
+
+    install -D -m644 "../php-${pkgver}/php.ini-production" "${pkgdir}/etc/php${_phpbase}${_suffix}/php.ini"
+    install -d -m755 "${pkgdir}/etc/php${_phpbase}${_suffix}/conf.d/"
+
+    pushd "${pkgdir}/usr/lib/php${_phpbase}${_suffix}/modules/"
+    # remove static modules
+    rm -f *.a
+
+    # remove modules provided by sub packages
+    rm -f {enchant,imap,intl,pspell,snmp,tidy,curl,ldap,bz2,bcmath,soap,zip,gmp,dba,opcache,json,gd,mcrypt,sodium,recode}.so
+    # dblib package
+    rm -rf {pdo_dblib,mssql}.so
+    # xml package
+    rm -f {dom,simplexml,xml,xmlreader,xmlwriter,xsl,wddx,xmlrpc}.so
+    # PostgreSQL
+    rm -f {pgsql,pdo_pgsql}.so
+    # ODBC
+    rm -f {odbc,pdo_odbc}.so
+    # SQLite
+    rm -f {pdo_sqlite,sqlite3}.so
+    # pdo_firebird
+    rm -f {pdo_firebird.so,interbase.so}
+    # MySQL modules
+    rm -f {mysqli,pdo_mysql,mysqlnd,mysql}.so
+
+    # Install COMMON modules
+    for i in *.so; do
+        _install_module_ini "${i}"
+    done
+    popd
+
+    # remove empty directory
+    rmdir "${pkgdir}/usr/include/php/include"
+
+    # move include directory
+    mv "${pkgdir}/usr/include/php" "${pkgdir}/usr/include/php${_phpbase}${_suffix}"
+
+    # Link to phar
+    ln -sf "phar${_phpbase}${_suffix}.phar" "${pkgdir}/usr/bin/phar${_phpbase}${_suffix}"
+
+    # rename executables
+    if [[ -f "${pkgdir}/usr/bin/phar.phar" ]]; then
+        mv "${pkgdir}/usr/bin/phar.phar" "${pkgdir}/usr/bin/phar${_phpbase}${_suffix}.phar"
+    fi
+
+    # rename man pages
+    if [[ -f "${pkgdir}/usr/share/man/man1/phar.1" ]]; then
+        mv "${pkgdir}/usr/share/man/man1/phar.1" \
+            "${pkgdir}/usr/share/man/man1/phar${_phpbase}${_suffix}.1"
+    fi
+
+    if [[ -f "${pkgdir}/usr/share/man/man1/phar.phar.1" ]]; then
+        mv "${pkgdir}/usr/share/man/man1/phar.phar.1" \
+            "${pkgdir}/usr/share/man/man1/phar.phar${_phpbase}${_suffix}.1"
+    fi
+
+    # kill phar symlink in old php builds
+    rm -f "${pkgdir}/usr/bin/phar"
+
+    # fix paths in executables
+    echo "[SED] ${pkgdir}/usr/bin/phpize${_phpbase}${_suffix}"
+    sed -i "/^includedir=/c \includedir=/usr/include/php${_phpbase}${_suffix}" "${pkgdir}/usr/bin/phpize${_phpbase}${_suffix}"
+    echo "[SED] ${pkgdir}/usr/bin/php-config${_phpbase}${_suffix}"
+    sed -i "/^include_dir=/c \include_dir=/usr/include/php${_phpbase}${_suffix}" "${pkgdir}/usr/bin/php-config${_phpbase}${_suffix}"
+
+    #sed -i "/^php_cli_binary=/c \include_dir=/usr/bin/php${_phpbase}${_suffix}" "${pkgdir}/usr/bin/php-config${_phpbase}${_suffix}"
+    #sed -i "/^php_cgi_binary=/c \include_dir=/usr/bin/php-cgi${_phpbase}${_suffix}" "${pkgdir}/usr/bin/php-config${_phpbase}${_suffix}"
+
+    echo "[SED] Sed for ${pkgdir}/usr/lib/php${_phpbase}${_suffix}/build/phpize.m4"
+    sed -i "/^\[  --with-php-config=/c \[  --with-php-config=PATH  Path to php-config [php-config${_phpbase}${_suffix}]], php-config${_phpbase}${_suffix}, no)" \
+        "${pkgdir}/usr/lib/php${_phpbase}${_suffix}/build/phpize.m4"
+    # popd
+    popd
+}
+# End install common
+
+# Cli
+package_php___PHPBASE___-cli___SUFFIX___() {
+    pkgdesc="cli (command-line executable) version for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}")
+    pushd "build"
+    make -j1 INSTALL_ROOT="${pkgdir}" install-cli
+    popd
+}
+# End cli
+
+# CGI
+package_php___PHPBASE___-cgi___SUFFIX___() {
+    pkgdesc="CGI and FCGI SAPI for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}")
+    if ((_build_per_sapi)); then
+        pushd "build-cgi"
+    else
+        pushd "build"
+    fi
+    case "${_phpbase}" in
+        53)
+            install -D -m755 sapi/cgi/php-cgi "${pkgdir}/usr/bin/php${_phpbase}${_suffix}-cgi"
+            ;;
+        *)
+            make -j1 INSTALL_ROOT="${pkgdir}" install-cgi
+            ;;
+    esac
+    popd
+}
+# End CGI
+
+package_php___PHPBASE___-apache___SUFFIX___() {
+    _build_mod_php_so="libphp${_suffix_so}.so"
+    _build_mod_php_module="php_module${_suffix_so}"
+    _build_build_php_script_name="php${_suffix_so}-script"
+    _apache_module_conf="${pkgbase}-module.conf"
+    pkgdesc="Apache SAPI for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'apache')
+    backup=("${_build_apache_cfg}/${_apache_module_conf}")
+    echo "# End of LoadModule in httpd.conf - see ArchWiki Apache HTTP Server"
+    echo "LoadModule ${_build_mod_php_module} modules/libphp${_phpbase}${_suffix}.so"
+    echo "AddHandler ${_build_php_script_name} .php"
+    echo "# End of Include List"
+    echo "Include conf/extra/${_apache_module_conf}"
+    install -D -m755 "build-apache/libs/${_build_mod_php_so}" "${pkgdir}/usr/lib/httpd/modules/libphp${_phpbase}${_suffix}.so"
+    install -D -m644 "php-apache.conf" "${pkgdir}/${_build_apache_cfg}/${_apache_module_conf}"
+    echo "Sed for ${pkgdir}/${_build_apache_cfg}/${_apache_module_conf}"
+    sed -e "s#@MODULE@#${_build_mod_php_module}#" \
+        -i "${pkgdir}/${_build_apache_cfg}/${_apache_module_conf}"
+}
+
+package_php___PHPBASE___-fpm___SUFFIX___() {
+    pkgdesc="FastCGI Process Manager for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'systemd-libs')
+    backup=("etc/php${_phpbase}${_suffix}/php-fpm.conf")
+    if ((_phpbase>=70)); then
+        backup+=("etc/php${_phpbase}${_suffix}/php-fpm.d/www.conf")
+    fi
+    options=('!emptydirs')
+
+    if ((_build_per_sapi)); then
+        pushd "build-fpm"
+    else
+        pushd "build"
+    fi
+    case "${_phpbase}" in
+        53)
+            install -d -m755 "${pkgdir}/usr/bin"
+            install -D -m755 sapi/fpm/php-fpm "${pkgdir}/usr/bin/php${_phpbase}${_suffix}-fpm"
+            install -D -m644 sapi/fpm/php-fpm.8 "${pkgdir}/usr/share/man/man8/php${_phpbase}${_suffix}-fpm.8"
+            install -D -m644 sapi/fpm/php-fpm.conf "${pkgdir}/etc/php${_phpbase}${_suffix}/php-fpm.conf"
+            install -d -m755 "${pkgdir}/etc/php${_phpbase}${_suffix}/fpm.d"
+            ;;
+        *)
+            make -j1 INSTALL_ROOT="${pkgdir}" install-fpm
+            ;;
+    esac
+
+    install -D -m644 "sapi/fpm/php-fpm.service" "${pkgdir}/usr/lib/systemd/system/php${_phpbase}${_suffix}-fpm.service"
+    echo "d /run/php${_phpbase}${_suffix}-fpm 755 root root" > php-fpm.tmpfiles
+    install -D -m644 "php-fpm.tmpfiles" "${pkgdir}/usr/lib/tmpfiles.d/php${_phpbase}${_suffix}-fpm.conf"
+    popd
+}
+
+package_php___PHPBASE___-embed___SUFFIX___() {
+    pkgdesc="Embedded PHP SAPI library for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'ncurses' 'systemd-libs')
+    options=('!emptydirs')
+    if ((_build_per_sapi)); then
+        pushd "build-embed"
+    else
+        pushd "build"
+    fi
+    patchelf --set-soname "libphp${_phpbase}${_suffix}.so" "libs/libphp${_suffix_so}.so"
+    case "${_phpbase}" in
+        53)
+            install -D -m755 "libs/libphp${_suffix_so}.so" "${pkgdir}/usr/lib/libphp${_phpbase}${_suffix}.so"
+            install -D -m644 "../php-${pkgver}/sapi/embed/php_embed.h" "${pkgdir}/usr/include/php${_phpbase}${_suffix}/sapi/embed/php_embed.h"
+            ;;
+        *)
+            make -j1 INSTALL_ROOT="${pkgdir}" PHP_SAPI=embed install-sapi
+            mv "${pkgdir}/usr/lib/libphp${_suffix_so}.so" "${pkgdir}/usr/lib/libphp${_phpbase}${_suffix}.so"
+            ;;
+    esac
+    popd
+}
+
+package_php___PHPBASE___-phpdbg___SUFFIX___() {
+    pkgdesc="Interactive PHP debugger for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}")
+    options=('!emptydirs')
+    pushd "build-phpdbg"
+    make -j1 INSTALL_ROOT="${pkgdir}" install-phpdbg
+    popd
+}
+
+package_php___PHPBASE___-pear___SUFFIX___() {
+    pkgdesc="PHP Extension and Application Repository for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" "php${_phpbase}-xml${_suffix}")
+    backup=("etc/php${_phpbase}${_suffix}/pear.conf")
+    #
+    pushd "build-pear"
+
+    make install-pear INSTALL_ROOT="${pkgdir}"
+
+    # remove unneeded files
+    rm -rf "${pkgdir}"/.{channels,depdb,depdblock,filemap,lock,registry}
+
+    # rename binaries
+    for i in pear peardev pecl; do
+        echo "Moving ${pkgdir}/usr/bin/${i} => ${pkgdir}/usr/bin/${pkgbase/php/$i}"
+        mv "${pkgdir}/usr/bin/${i}" "${pkgdir}/usr/bin/${pkgbase/php/$i}"
+        # fix hardcoded php paths in pear
+        sed -i "s|/usr/bin/php|/usr/bin/php${_phpbase}${_suffix}|g" "${pkgdir}/usr/bin/${pkgbase/php/$i}"
+        sed -i "s|PHP=php|PHP=${_phpbase}${_suffix}|g" "${pkgdir}/usr/bin/${pkgbase/php/$i}"
+    done
+    # fix pear.conf with unserialize
+    ./sapi/cli/php ../pear-config-patcher.php "${pkgdir}/etc/php${_phpbase}${_suffix}/pear.conf" "/usr/bin/php${_phpbase}${_suffix}" "${_phpbase}${_suffix}"
+
+    #popd
+    popd
+}
+
+package_php___PHPBASE___-dblib___SUFFIX___() {
+    depends=("php${_phpbase}${_suffix}" 'freetds')
+    provides=(
+        "php${_phpbase}${_suffix}-sybase=${pkgver}"
+    )
+   _install_module pdo_dblib
+    if ((_build_mssql)); then
+        _install_module mssql
+        provided+=("php${_phpbase}${_suffix}-mssql=${pkgver}")
+        pkgdesc="pdo_dblib module for php${_phpbase}${_suffix}"
+    else
+        pkgdesc="mssql and pdo_dblib modules for php${_phpbase}${_suffix}"
+    fi
+}
+
+package_php___PHPBASE___-enchant___SUFFIX___() {
+    pkgdesc="enchant module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'enchant')
+    _install_module enchant
+}
+
+package_php___PHPBASE___-gd___SUFFIX___() {
+    pkgdesc="gd module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'gd')
+    if ((_build_bundled_gd)); then
+        depends+=('libxpm' 'libpng' 'libjpeg')
+    fi
+    _install_module gd
+}
+
+
+package_php___PHPBASE___-imap___SUFFIX___() {
+    pkgdesc="imap module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'pam' 'krb5' 'c-client')
+   _install_module imap
+}
+
+package_php___PHPBASE___-intl___SUFFIX___() {
+    pkgdesc="intl module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}") 
+    if ((_build_with_custom_icu)); then    
+        # Patch to proper path inside intl.so
+        patchelf --set-rpath "/usr/lib/php${_phpbase}${_suffix}/icu${_pkgver_icu}/lib" "build/modules/intl.so"
+    else
+        depends+=('icu')
+    fi
+    _install_module intl
+}
+
+package_php___PHPBASE___-mcrypt___SUFFIX___() {
+    pkgdesc="mcrypt module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'libmcrypt')
+   _install_module mcrypt
+}
+
+package_php___PHPBASE___-odbc___SUFFIX___() {
+    pkgdesc="ODBC modules for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'unixodbc')
+    _install_module odbc
+    _install_module pdo_odbc
+}
+
+package_php___PHPBASE___-pgsql___SUFFIX___() {
+    pkgdesc="PostgreSQL modules for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'postgresql-libs')
+    _install_module pgsql
+    _install_module pdo_pgsql
+}
+
+package_php___PHPBASE___-pspell___SUFFIX___() {
+    pkgdesc="pspell module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'aspell')
+    _install_module pspell
+}
+
+package_php___PHPBASE___-snmp___SUFFIX___() {
+    pkgdesc="snmp module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'net-snmp')
+    _install_module snmp
+}
+
+package_php___PHPBASE___-sqlite___SUFFIX___() {
+    pkgdesc="sqlite module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'sqlite')
+    _install_module sqlite3
+    _install_module pdo_sqlite
+}
+
+package_php___PHPBASE___-tidy___SUFFIX___() {
+    pkgdesc="tidy module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'tidy')
+    _install_module tidy
+}
+
+package_php___PHPBASE___-xml___SUFFIX___() {
+    pkgdesc="xml modules for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'libxml2')
+    _install_module dom
+    _install_module simplexml
+    if ((_build_wddx)); then
+        _install_module wddx
+    fi
+    _install_module xml
+    _install_module xmlreader
+    _install_module xmlwriter
+}
+
+package_php___PHPBASE___-xsl___SUFFIX___() {
+    pkgdesc="xsl module for php${_phpbase}${_suffix}"
+    depends=(
+        "php${_phpbase}${_suffix}" 
+        "php${_phpbase}-xml${_suffix}=${pkgver}" 
+        'libxslt'
+        'libxml2'
+    )
+    _install_module xsl
+}
+
+package_php___PHPBASE___-xmlrpc___SUFFIX___() {
+    pkgdesc="xmlrpc module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}")
+    _install_module xmlrpc
+}
+
+package_php___PHPBASE___-soap___SUFFIX___() {
+    pkgdesc="soap module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'libxml2')
+    _install_module soap
+}
+
+package_php___PHPBASE___-zip___SUFFIX___() {
+    pkgdesc="zip module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'libzip')
+    _install_module zip
+}
+
+
+package_php___PHPBASE___-bcmath___SUFFIX___() {
+    pkgdesc="bcmath module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}")
+    _install_module bcmath
+}
+
+package_php___PHPBASE___-bz2___SUFFIX___() {
+    pkgdesc="bz2 module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'bzip2')
+    _install_module bz2
+}
+
+package_php___PHPBASE___-ldap___SUFFIX___() {
+    pkgdesc="ldap module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'libldap' 'libsasl')
+    _install_module ldap
+}
+
+package_php___PHPBASE___-curl___SUFFIX___() {
+    pkgdesc="curl module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" "curl")
+    _install_module curl
+}
+
+# gmp
+package_php___PHPBASE___-gmp___SUFFIX___() {
+    pkgdesc="gmp module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'gmp')
+    _install_module gmp
+}
+# End gmp
+
+# Dba
+package_php___PHPBASE___-dba___SUFFIX___() {
+    pkgdesc="dba module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'gdbm' 'db')
+    _install_module dba
+}
+# End dba
+
+# Json
+package_php___PHPBASE___-json___SUFFIX___() {
+    pkgdesc="json module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}")
+    _install_module json
+}
+# End json
+
+# Recode
+package_php___PHPBASE___-recode___SUFFIX___() {
+    pkgdesc="recode module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" 'recode')
+    _install_module recode
+}
+# End recode
+
+# Recode
+package_php___PHPBASE___-sodium___SUFFIX___() {
+    pkgdesc="sodium (libsodium) module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" "libsodium")
+    _install_module sodium
+}
+# End recode
+
+# Opcache
+package_php___PHPBASE___-opcache___SUFFIX___() {
+    pkgdesc="opcache zend module for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}")
+    _install_module opcache
+}
+# End opcache
+
+# Interbase modules
+package_php___PHPBASE___-interbase___SUFFIX___() {
+    pkgdesc="Interbase modules for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}" "libfbclient")
+    #backup=()
+    if ((_build_interbase)); then
+        _install_module interbase
+    fi
+    _install_module pdo_firebird
+}
+# End interbase
+
+# MySQL modules
+package_php___PHPBASE___-mysql___SUFFIX___() {
+    pkgdesc="MySQL modules for php${_phpbase}${_suffix}"
+    depends=("php${_phpbase}${_suffix}")
+    _install_module mysqlnd
+    _install_module mysqli
+    _install_module pdo_mysql
+    if ((_build_outdated_mysql)); then
+        _install_module mysql
+    fi
+}
+# End mysql
+#@@@PKGBUILD_END@@@
