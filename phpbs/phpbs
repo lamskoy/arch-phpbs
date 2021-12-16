@@ -2,10 +2,10 @@
 #@@@PKGBUILD_START@@@
 makedepends=(
     'libtool' 'autoconf' 'automake' 'patchelf' 'gawk' 'sed' 'bash' 'python' 'libxml2' 'pam'
-    'openssl' 'openssl-1.0' 'argon2' 'libmcrypt' 'libsodium' 'libldap' 'libsasl' 'krb5' 
+    'openssl' 'openssl-1.0' 'argon2' 'libmcrypt' 'libsodium' 'libldap' 'libsasl' 'krb5'
     'libxslt'  'libzip' 'freetds' 'apache' 'aspell' 'c-client' 'db' 'enchant' 'readline'
     'gmp' 'icu' 'net-snmp' 'postgresql-libs' 'sqlite' 'systemd-libs' 'unixodbc' 'curl' 'ncurses'
-    'freetds' 'pcre' 'tidy' 'libfbclient' 'oniguruma' 'gd'  'recode' 'bzip2' 'gdbm' 'zlib'  
+    'freetds' 'pcre' 'tidy' 'libfbclient' 'oniguruma' 'gd'  'recode' 'bzip2' 'gdbm' 'zlib'
 )
 arch=('i686' 'x86_64')
 checkdepends=('procps-ng')
@@ -22,7 +22,7 @@ _phpbs_set_vars() {
     _cppflags=''
     _phpbase="$1"
     _suffix="$2"
-    
+
     # Other stuff
     _pkgver_icu=64-1
     _build_fpm_user=http
@@ -35,25 +35,25 @@ _phpbs_set_vars() {
     _priority_opcache=10
     _priority_xml=15
     _priority_json=15
-    
+
     _patches=()
     _subpkg=()
-    
+
     pkgrel=1
 
     # Versions defintions
     case "$_phpbase" in
-        81) 
-            pkgver=8.1.0  
+        81)
+            pkgver=8.1.0
             pkgrel=5
             ;;
         80) pkgver=8.0.13 ;;
         74) pkgver=7.4.26 ;;
         73) pkgver=7.3.33 ;;
-        72) 
-            pkgver=7.2.34 
+        72)
+            pkgver=7.2.34
             pkgrel=7
-            ;;        
+            ;;
         71) pkgver=7.1.33 ;;
         70) pkgver=7.0.33 ;;
         56) pkgver=5.6.40 ;;
@@ -65,7 +65,7 @@ _phpbs_set_vars() {
             return 1;
             ;;
     esac
-    
+
 
 
     # Magic comes here
@@ -76,9 +76,9 @@ _phpbs_set_vars() {
     pkgbase="php\${_phpbase}\${_suffix}"
     pkgname=("\${pkgbase}")
     pkgdesc="PHP \${pkgver} compiled as to not conflict with mainline php"
-    
 
-    
+
+
     _phpconfig="\
         --prefix=/usr \
         --sbindir=/usr/bin \
@@ -93,7 +93,7 @@ _phpbs_set_vars() {
         --program-suffix=\${_phpbase}\${_suffix} \
         --with-config-file-path=/etc/php\${_phpbase}\${_suffix} \
         --with-config-file-scan-dir=/etc/php\${_phpbase}\${_suffix}/conf.d \
-        --without-pear"        
+        --without-pear"
     if ((_phpbase > 53)); then
         _phpconfig+=" --datarootdir=/usr/share/php\${_phpbase}\${_suffix} "
     fi
@@ -142,7 +142,7 @@ _phpbs_set_vars() {
         --with-imap=shared,/usr \
         --with-kerberos \
         --with-imap-ssl=yes \
-    "    
+    "
 
     # Basic submodules. Cli shoud be first!
     _subpkg+=('cli')
@@ -251,6 +251,8 @@ _phpbs_set_vars() {
         _patches+=("sqlite-defensive-php7.0.patch")
         # PHP == 7.0: Upgrade sqlite lib to 3.28
         _patches+=("sqlite-3.28-php7.0.patch")
+    elif ((54 == _phpbase)); then
+        _patches+=("php-gd-vpx.patch")
     elif ((53 == _phpbase)); then
         _patches+=("cve-php5.3.patch")
         _patches+=("mpm-apache.patch")
@@ -320,7 +322,7 @@ _phpbs_set_vars() {
         _patches+=("timezonedb-guess.patch")
         _patches+=("timezonedb-php${_php_major_minor}.patch")
     fi
-        
+
     if (( ! _build_openssl_v10_patch || ! _build_with_custom_icu)); then
         _phpconfig+=" --disable-rpath "
     fi
@@ -579,16 +581,16 @@ _phpbs_cat_pkgbuild_vars() {
     local _arr_vars=('_phpbase' '_suffix' 'pkgver' 'pkgrel' 'pkgbase' 'pkgdesc' '_cppflags')
     for i in "${_arr_vars[@]}"; do
         _phpbs_dump_string "${i}" "$1";
-    done    
+    done
     echo >> "${1}"
     declare -p | awk '{ print $3; }' | grep -E '^_(suffix|pkgver)'  >> "$1"
-    echo >> "${1}"    
+    echo >> "${1}"
     _arr_vars=('pkgname' 'source' 'depends' 'checkdepends' 'arch' '_patches')
     for i in "${_arr_vars[@]}"; do
         _phpbs_dump_array "${i}" "$1"
         echo >> "${1}"
     done
-    declare -p | awk '{ print $3; }' | grep -E '^_(build|priority)'  >> "$1"    
+    declare -p | awk '{ print $3; }' | grep -E '^_(build|priority)'  >> "$1"
     _arr_vars=('_phpextensions' '_phpconfig' '_phpextensions_fpm')
     for i in "${_arr_vars[@]}"; do
         _phpbs_dump_string_compacted "${i}" "$1"
@@ -884,7 +886,7 @@ prepare() {
     done
     if ((_build_uses_autoconf)); then
         autoconf
-    fi     
+    fi
     echo "[SED] Sed for ${pkgdir}/usr/lib/php${_phpbase}${_suffix}/scripts/phpize.m4"
     sed -i "/^\[  --with-php-config=/c \[  --with-php-config=PATH  Path to php-config [php-config${_phpbase}${_suffix}]], php-config${_phpbase}${_suffix}, no)" "scripts/phpize.m4"
     rm -f tests/output/stream_isatty_*.phpt
@@ -1396,8 +1398,8 @@ package_php___PHPBASE___-imap___SUFFIX___() {
 
 package_php___PHPBASE___-intl___SUFFIX___() {
     pkgdesc="intl module for php${_phpbase}${_suffix}"
-    depends=("php${_phpbase}${_suffix}") 
-    if ((_build_with_custom_icu)); then    
+    depends=("php${_phpbase}${_suffix}")
+    if ((_build_with_custom_icu)); then
         # Patch to proper path inside intl.so
         patchelf --set-rpath "/usr/lib/php${_phpbase}${_suffix}/icu${_pkgver_icu}/lib" "build/modules/intl.so"
     else
@@ -1467,8 +1469,8 @@ package_php___PHPBASE___-xml___SUFFIX___() {
 package_php___PHPBASE___-xsl___SUFFIX___() {
     pkgdesc="xsl module for php${_phpbase}${_suffix}"
     depends=(
-        "php${_phpbase}${_suffix}" 
-        "php${_phpbase}-xml${_suffix}=${pkgver}" 
+        "php${_phpbase}${_suffix}"
+        "php${_phpbase}-xml${_suffix}=${pkgver}"
         'libxslt'
         'libxml2'
     )
