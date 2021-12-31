@@ -1072,10 +1072,14 @@ check() {
     export SKIP_SLOW_TESTS=1
 
     if ((_phpbase <= 54)); then
-        TEST_PHP_EXECUTABLE="sapi/cli/php" \
-            sapi/cli/php -n run-tests.php -n {tests,Zend}
+        pushd "../php-${pkgver}"
+        TEST_PHP_EXECUTABLE="../build/sapi/cli/php" \
+            ../build/sapi/cli/php -n run-tests.php -n {tests,Zend}
+        popd
     elif ((_phpbase >= 55 && _phpbase < 73)); then
-        sapi/cli/php -n run-tests.php -n -P {tests,Zend}
+        pushd "../php-${pkgver}"
+        ../build/sapi/cli/php -n run-tests.php -n -P {tests,Zend}
+        popd
     elif ((73 == _phpbase)); then
         export TESTS='tests Zend'
         make test
@@ -1084,6 +1088,7 @@ check() {
         export TESTS='tests Zend'
         make test
     fi
+
     popd
 }
 
