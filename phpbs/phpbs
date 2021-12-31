@@ -6,6 +6,7 @@ makedepends=(
     'libxslt'  'libzip' 'freetds' 'apache' 'aspell' 'c-client' 'db' 'enchant' 'readline'
     'gmp' 'icu' 'net-snmp' 'postgresql-libs' 'sqlite' 'systemd-libs' 'unixodbc' 'curl' 'ncurses'
     'freetds' 'pcre' 'tidy' 'libfbclient' 'oniguruma' 'gd'  'recode' 'bzip2' 'gdbm' 'zlib'
+    'systemd' 'systemd-libs'
 )
 arch=('i686' 'x86_64')
 checkdepends=('procps-ng')
@@ -44,11 +45,14 @@ _phpbs_set_vars() {
     # Versions defintions
     case "$_phpbase" in
         81)
-            pkgver=8.1.0
-            pkgrel=5
+            pkgver=8.1.1
+            pkgrel=2
             ;;
-        80) pkgver=8.0.13 ;;
-        74) pkgver=7.4.26 ;;
+        80) pkgver=8.0.14 ;;
+        74)
+            pkgver=7.4.27
+            pkgrel=2
+            ;;
         73) pkgver=7.3.33 ;;
         72)
             pkgver=7.2.34
@@ -97,6 +101,7 @@ _phpbs_set_vars() {
     if ((_phpbase > 53)); then
         _phpconfig+=" --datarootdir=/usr/share/php\${_phpbase}\${_suffix} "
     fi
+
     _phpextensions+="\
         --enable-bcmath=shared \
         --with-bz2=shared,/usr \
@@ -123,7 +128,6 @@ _phpbs_set_vars() {
         --enable-sysvsem=shared \
         --enable-sysvshm=shared \
         --enable-tokenizer=shared \
-        --enable-mysqlnd=shared \
         --enable-mysqlnd-compression-support \
         --with-mysqli=shared,mysqlnd \
         --with-pdo-mysql=shared,mysqlnd \
@@ -172,8 +176,13 @@ _phpbs_set_vars() {
     _build_wddx=$((_phpbase < 74));
     _build_interbase=$((_phpbase < 74));
     _build_xmlrpc=$((_phpbase < 74));
+
     # Always
     _build_shared_gd=1
+
+    # Don't want to patch PHP tests in 8.0 and later, they doesn't load mysqlnd before mysql extensions
+    _build_shared_mysqlnd=0
+
     # Bug with external gd with PHP5 <= 5.4
     _build_bundled_gd=$((_phpbase <= 54 && _phpbase >= 50))
     # PHP 5.3 fails to build shared PDO with shared sqlite
@@ -392,6 +401,11 @@ _phpbs_set_vars() {
             "
     fi
 
+    if ((_build_shared_mysqlnd)); then
+        _phpextensions+=" --enable-mysqlnd=shared "
+    else
+        _phpextensions+=" --enable-mysqlnd "
+    fi
 
     _with_gd_word="--with-gd"
     if ((_phpbase >= 74)); then
@@ -689,10 +703,10 @@ _phpbs_process_package() {
     _phpbs_info_message "Building binary package from ${newbuildfile} for ${package_name}"
     if ((_phpbs_build_sumsfile)); then
         BUILDDIR="${builddir}" \
-            makepkg --nocheck -Lsfc -p "${newbuildfile}"
+            makepkg -Lsfc -p "${newbuildfile}"
     else
         BUILDDIR="${builddir}" \
-            makepkg --skipinteg --nocheck -Lsfc -p "${newbuildfile}"
+            makepkg --skipinteg -Lsfc -p "${newbuildfile}"
     fi
     if [[ $? -eq 0 ]];
         then rm -rf "${builddir}" "${newbuildfile}";
@@ -1048,9 +1062,9 @@ build() {
 }
 
 check() {
-    pushd "php-${pkgver}"
+    pushd "build"
     # Check if sendmail was configured correctly (FS#47600)
-    ../build/sapi/cli/php -n -r 'echo ini_get("sendmail_path");' | grep -q '/usr/bin/sendmail'
+    sapi/cli/php -n -r 'echo ini_get("sendmail_path");' | grep -q '/usr/bin/sendmail'
 
     export REPORT_EXIT_STATUS=1
     export NO_INTERACTION=1
@@ -1058,10 +1072,10 @@ check() {
     export SKIP_SLOW_TESTS=1
 
     if ((_phpbase <= 54)); then
-        TEST_PHP_EXECUTABLE="../build/sapi/cli/php" \
-            ../build/sapi/cli/php -n run-tests.php -n {tests,Zend}
+        TEST_PHP_EXECUTABLE="sapi/cli/php" \
+            sapi/cli/php -n run-tests.php -n {tests,Zend}
     elif ((_phpbase >= 55 && _phpbase < 73)); then
-        ../build/sapi/cli/php -n run-tests.php -n -P {tests,Zend}
+        sapi/cli/php -n run-tests.php -n -P {tests,Zend}
     elif ((73 == _phpbase)); then
         export TESTS='tests Zend'
         make test
@@ -1584,7 +1598,9 @@ package_php___PHPBASE___-interbase___SUFFIX___() {
 package_php___PHPBASE___-mysql___SUFFIX___() {
     pkgdesc="MySQL modules for php${_phpbase}${_suffix}"
     depends=("php${_phpbase}${_suffix}")
-    _install_module mysqlnd
+    if ((_build_shared_mysqlnd)); then
+        _install_module mysqlnd
+    fi
     _install_module mysqli
     _install_module pdo_mysql
     if ((_build_outdated_mysql)); then

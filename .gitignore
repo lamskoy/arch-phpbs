@@ -14,3 +14,4 @@
 /_repo/*
 *.orig
 *.rej
+/sources/*
