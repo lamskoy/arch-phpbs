@@ -179,9 +179,7 @@ _phpbs_set_vars() {
 
     # Always
     _build_shared_gd=1
-
-    # Don't want to patch PHP tests in 8.0 and later, they doesn't load mysqlnd before mysql extensions
-    _build_shared_mysqlnd=0
+    _build_shared_mysqlnd=1
 
     # Bug with external gd with PHP5 <= 5.4
     _build_bundled_gd=$((_phpbase <= 54 && _phpbase >= 50))
@@ -202,7 +200,6 @@ _phpbs_set_vars() {
     _build_openssl_v10_patch=$((_phpbase < 70 && _phpbase >= 53 && ! _build_openssl_v11_patch))
     _build_uses_autoconf=$((! _build_openssl_v10_patch));
     _build_with_custom_icu=$((_phpbase >= 53 && _phpbase <= 54));
-
 
     if ((_phpbase >= 53 && _phpbase <= 54)); then
         source+=("https://php.net/distributions/php-\${pkgver}.tar.bz2")
@@ -237,6 +234,11 @@ _phpbs_set_vars() {
     fi
     if ((_build_json)); then
         _subpkg+=('json')
+    fi
+    if ((_phpbase >= 74)); then
+        _patches+=('php74-module-order.patch')
+    else
+        _patches+=('php53-module-order.patch')
     fi
     if ((_build_openssl_v11_patch)); then
         _patches+=("openssl-1.1.patch")
@@ -680,16 +682,17 @@ _phpbs_process_package() {
         _phpbs_error_message "Cannot create temp dir for ${package_name}";
         exit 1;
     fi
+
+    _phpbs_info_message "Updating PKGBUILD ${newbuildfile} with sums for ${package_name}"
+    BUILDDIR="${builddir}" \
+        makepkg -g -p "${newbuildfile}" >> "${newbuildfile}"
+    if [[ $? -ne 0 ]]; then
+        _phpbs_error_message "Error while building package sums file for ${package_name}";
+        _phpbs_cmd_message "Last command: makepkg -g -p ${newbuildfile} >> ${newbuildfile}";
+        _phpbs_dir_message "Last builddir: ${builddir}"
+        exit 1;
+    fi
     if ((build_sourcepkg)); then
-        _phpbs_info_message "Updating PKGBUILD ${newbuildfile} with sums for ${package_name}"
-        BUILDDIR="${builddir}" \
-            makepkg -g -p "${newbuildfile}" >> "${newbuildfile}"
-        if [[ $? -ne 0 ]]; then
-            _phpbs_error_message "Error while building package sums file for ${package_name}";
-            _phpbs_cmd_message "Last command: makepkg -g -p ${newbuildfile} >> ${newbuildfile}";
-            _phpbs_dir_message "Last builddir: ${builddir}"
-            exit 1;
-        fi
         _phpbs_info_message "Building source package from ${newbuildfile} for ${package_name}"
         BUILDDIR="${builddir}" \
             makepkg -Sf -p "${newbuildfile}"
@@ -701,13 +704,8 @@ _phpbs_process_package() {
         fi
     fi
     _phpbs_info_message "Building binary package from ${newbuildfile} for ${package_name}"
-    if ((_phpbs_build_sumsfile)); then
-        BUILDDIR="${builddir}" \
-            makepkg -Lsfc -p "${newbuildfile}"
-    else
-        BUILDDIR="${builddir}" \
-            makepkg --skipinteg -Lsfc -p "${newbuildfile}"
-    fi
+    BUILDDIR="${builddir}" \
+        makepkg -Lsfc -p "${newbuildfile}"
     if [[ $? -eq 0 ]];
         then rm -rf "${builddir}" "${newbuildfile}";
     else
@@ -1070,25 +1068,11 @@ check() {
     export NO_INTERACTION=1
     export SKIP_ONLINE_TESTS=1
     export SKIP_SLOW_TESTS=1
-
-    if ((_phpbase <= 54)); then
-        pushd "../php-${pkgver}"
-        TEST_PHP_EXECUTABLE="../build/sapi/cli/php" \
-            ../build/sapi/cli/php -n run-tests.php -n {tests,Zend}
-        popd
-    elif ((_phpbase >= 55 && _phpbase < 73)); then
-        pushd "../php-${pkgver}"
-        ../build/sapi/cli/php -n run-tests.php -n -P {tests,Zend}
-        popd
-    elif ((73 == _phpbase)); then
-        export TESTS='tests Zend'
-        make test
-    elif ((_phpbase > 73)); then
+    export TESTS='tests Zend'
+    if ((_phpbase > 73)); then
         export TEST_PHP_ARGS="-j$(nproc)"
-        export TESTS='tests Zend'
-        make test
     fi
-
+    make test
     popd
 }
 

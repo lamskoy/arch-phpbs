@@ -1,0 +1,64 @@
+--- a/acinclude.m4
++++ b/acinclude.m4
+@@ -845,6 +845,10 @@
+ 
+   if test "x$5" = "xyes"; then
+     PHP_ZEND_EX="$PHP_ZEND_EX \$(phplibdir)/$1.$suffix"
++  elif test "x$1" = "xxml"; then
++    PHP_MODULES="\$(phplibdir)/$1.$suffix $PHP_MODULES"
++  elif test "x$1" = "xmysqlnd"; then
++    PHP_MODULES="\$(phplibdir)/$1.$suffix $PHP_MODULES"
+   else
+     PHP_MODULES="$PHP_MODULES \$(phplibdir)/$1.$suffix"
+   fi
+--- a/aclocal.m4
++++ b/aclocal.m4
+@@ -845,6 +845,10 @@
+ 
+   if test "x$5" = "xyes"; then
+     PHP_ZEND_EX="$PHP_ZEND_EX \$(phplibdir)/$1.$suffix"
++  elif test "x$1" = "xxml"; then
++    PHP_MODULES="\$(phplibdir)/$1.$suffix $PHP_MODULES"
++  elif test "x$1" = "xmysqlnd"; then
++    PHP_MODULES="\$(phplibdir)/$1.$suffix $PHP_MODULES"
+   else
+     PHP_MODULES="$PHP_MODULES \$(phplibdir)/$1.$suffix"
+   fi
+--- a/configure
++++ b/configure
+@@ -22586,9 +22586,9 @@
+   esac
+ 
+   if test "x" = "xyes"; then
+-    PHP_ZEND_EX="$PHP_ZEND_EX \$(phplibdir)/libxml.$suffix"
++    PHP_ZEND_EX="\$(phplibdir)/libxml.$suffix $PHP_ZEND_EX"
+   else
+-    PHP_MODULES="$PHP_MODULES \$(phplibdir)/libxml.$suffix"
++    PHP_MODULES="\$(phplibdir)/libxml.$suffix $PHP_MODULES"
+   fi
+ 
+   PHP_VAR_SUBST="$PHP_VAR_SUBST shared_objects_libxml"
+@@ -95873,9 +95873,9 @@
+   esac
+ 
+   if test "x" = "xyes"; then
+-    PHP_ZEND_EX="$PHP_ZEND_EX \$(phplibdir)/xml.$suffix"
++    PHP_ZEND_EX="\$(phplibdir)/xml.$suffix $PHP_ZEND_EX"
+   else
+-    PHP_MODULES="$PHP_MODULES \$(phplibdir)/xml.$suffix"
++    PHP_MODULES="\$(phplibdir)/xml.$suffix $PHP_MODULES"
+   fi
+ 
+   PHP_VAR_SUBST="$PHP_VAR_SUBST shared_objects_xml"
+@@ -102072,9 +102072,9 @@
+   esac
+ 
+   if test "x" = "xyes"; then
+-    PHP_ZEND_EX="$PHP_ZEND_EX \$(phplibdir)/mysqlnd.$suffix"
++    PHP_ZEND_EX="\$(phplibdir)/mysqlnd.$suffix $PHP_ZEND_EX"
+   else
+-    PHP_MODULES="$PHP_MODULES \$(phplibdir)/mysqlnd.$suffix"
++    PHP_MODULES="\$(phplibdir)/mysqlnd.$suffix $PHP_MODULES"
+   fi
+ 
+   PHP_VAR_SUBST="$PHP_VAR_SUBST shared_objects_mysqlnd"
