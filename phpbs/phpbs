@@ -6,7 +6,7 @@ makedepends=(
     'libxslt'  'libzip' 'freetds' 'apache' 'aspell' 'c-client' 'db' 'enchant' 'readline'
     'gmp' 'icu' 'net-snmp' 'postgresql-libs' 'sqlite' 'systemd-libs' 'unixodbc' 'curl' 'ncurses'
     'freetds' 'pcre' 'tidy' 'libfbclient' 'oniguruma' 'gd'  'recode' 'bzip2' 'gdbm' 'zlib'
-    'systemd' 'systemd-libs'
+    'systemd' 'systemd-libs' 'smtp-forwarder'
 )
 arch=('i686' 'x86_64')
 checkdepends=('procps-ng')
@@ -40,23 +40,23 @@ _phpbs_set_vars() {
     _patches=()
     _subpkg=()
 
-    pkgrel=1
+    pkgrel=2
 
     # Versions defintions
     case "$_phpbase" in
         81)
             pkgver=8.1.1
-            pkgrel=2
+            pkgrel=3
             ;;
         80) pkgver=8.0.14 ;;
         74)
             pkgver=7.4.27
-            pkgrel=2
+            pkgrel=3
             ;;
         73) pkgver=7.3.33 ;;
         72)
             pkgver=7.2.34
-            pkgrel=7
+            pkgrel=8
             ;;
         71) pkgver=7.1.33 ;;
         70) pkgver=7.0.33 ;;
