@@ -255,7 +255,7 @@ _phpbs_set_vars() {
     else
         source+=("https://php.net/distributions/php-\${pkgver}.tar.xz")
     fi
-    source+=("https://github.com/pear/pearweb_phars/raw/v\${_pkgver_pear}/install-pear-nozlib.phar")    
+    source+=("https://github.com/pear/pearweb_phars/raw/v\${_pkgver_pear}/install-pear-nozlib.phar")
     if ((_build_with_custom_icu)); then
         source+=('https://github.com/unicode-org/icu/releases/download/release-${_pkgver_icu}/icu4c-${_pkgver_icu/-/_}-src.tgz')
     fi
@@ -1543,8 +1543,8 @@ package_php___PHPBASE___-pecl___SUFFIX___() {
         sed "s|PHP=php|PHP=\"/usr/bin/php${_phpbase}${_suffix}\"|g" \
             -i "${pkgdir}/usr/bin/${_target}"
     done
-    rm -rf "${pkgdir}/usr/bin/pear" "${pkgdir}/usr/bin/peardev" 
-    rm -rf "${pkgdir}/var" "${pkgdir}/etc" "${pkgdir}/usr/share"    
+    rm -rf "${pkgdir}/usr/bin/pear" "${pkgdir}/usr/bin/peardev"
+    rm -rf "${pkgdir}/var" "${pkgdir}/etc" "${pkgdir}/usr/share"
 }
 
 package_php___PHPBASE___-dblib___SUFFIX___() {
