@@ -1,12 +1,16 @@
 ## phpbs
 ### PHP Building system for all PHP versions packages from 5.3 to 8.1
 
-#### How to use it?
+#### How to install it? 
+```
+git clone https://github.com/lamskoy/arch-phpbs.git
+cd arch-phpbs
+```
 
-First git clone this repo. Then:
-```
-cd phpbs
-```
+Now you're the boss and ready to go with building packages
+
+
+#### How to use it?
 
 To build all packages:
 ```
