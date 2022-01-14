@@ -1421,8 +1421,8 @@ package_php___PHPBASE___-fpm___SUFFIX___() {
     install -d -m755 "${pkgdir}/etc/php${_phpbase}${_suffix}/${_sapi}/"
     install -D -m644 "../php-${pkgver}/php.ini-production" "${pkgdir}/etc/php${_phpbase}${_suffix}/${_sapi}/php.ini"
     install -D -m644 "sapi/fpm/php-fpm.service" "${pkgdir}/usr/lib/systemd/system/${_build_fpm_service_name}.service"
-    echo "d /run/${_build_fpm_name} 755 root root" > php-fpm.tmpfiles
-    install -D -m644 "php-fpm.tmpfiles" "${pkgdir}/usr/lib/tmpfiles.d/${_build_fpm_name}.conf"
+    echo "d /run/${_build_fpm_service_name} 755 root root" > php-fpm.tmpfiles
+    install -D -m644 "php-fpm.tmpfiles" "${pkgdir}/usr/lib/tmpfiles.d/${_build_fpm_service_name}.conf"
     popd
 }
 
