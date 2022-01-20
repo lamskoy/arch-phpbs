@@ -10,5 +10,5 @@ php80 php81 php74 php73 php72 php71 php70 php56 php55 php54 php53 php8 php7 php5
 	@$(SHELL) $(BUILDER) $@ --suffix=$(SUFFIX) --sources=$(SOURCES)
 clean:
 	@rm -rf packages/ packages-src/ logs/ phpbuilder.*
-all: clean 
+all:
 	@$(SHELL) $(BUILDER) all --suffix=$(SUFFIX) --sources=$(SOURCES)

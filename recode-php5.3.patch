@@ -8,16 +8,3 @@
 +    AC_MSG_WARN([recode extension can not be configured together with:$recode_conflict])
    fi
  fi
---- a/configure
-+++ b/configure
-@@ -105032,10 +105032,6 @@
- fi
- 
-   fi
--
--  if test -n "$recode_conflict"; then
--    { echo "configure: error: recode extension can not be configured together with:$recode_conflict" 1>&2; exit 1; }
--  fi
- fi
- 
- 
