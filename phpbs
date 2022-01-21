@@ -1,8 +1,8 @@
 #!/bin/bash
 #
 build_sourcepkg=1
-build_binpkg=0
-skip_sums=1
+build_binpkg=1
+skip_sums=0
 skip_build_check=1
 
 _phpbs_set_vars() {
@@ -17,8 +17,8 @@ _phpbs_set_vars() {
     # Versions defintions
     ###########################################################################
     case "$_phpbase" in
-        81) pkgver=8.1.1  ; pkgrel=$((4 + _phpbs_release)) ;;
-        80) pkgver=8.0.14 ; pkgrel=$((4 + _phpbs_release)) ;;
+        81) pkgver=8.1.2  ; pkgrel=$((1 + _phpbs_release)) ;;
+        80) pkgver=8.0.15 ; pkgrel=$((1 + _phpbs_release)) ;;
         74) pkgver=7.4.27 ; pkgrel=$((4 + _phpbs_release)) ;;
         73) pkgver=7.3.33 ; pkgrel=$((4 + _phpbs_release)) ;;
         72) pkgver=7.2.34 ; pkgrel=$((8 + _phpbs_release)) ;;
