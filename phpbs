@@ -113,6 +113,7 @@ _phpbs_set_vars() {
     # PHP Modules: Shared/Static modes
     # Warning: CONSTRAINTS are overriding these flags by need
     ###########################################################################
+    _build_enable_json=1
     _build_enable_readline=1
     _build_enable_mssql=1
     _build_enable_soap=1
