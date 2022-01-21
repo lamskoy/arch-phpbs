@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 build_sourcepkg=1
-build_binpkg=1
+build_binpkg=0
 skip_sums=0
 skip_build_check=1
 
@@ -17,17 +17,17 @@ _phpbs_set_vars() {
     # Versions defintions
     ###########################################################################
     case "$_phpbase" in
-        81) pkgver=8.1.2  ; pkgrel=$((1 + _phpbs_release)) ;;
-        80) pkgver=8.0.15 ; pkgrel=$((1 + _phpbs_release)) ;;
-        74) pkgver=7.4.27 ; pkgrel=$((4 + _phpbs_release)) ;;
-        73) pkgver=7.3.33 ; pkgrel=$((4 + _phpbs_release)) ;;
-        72) pkgver=7.2.34 ; pkgrel=$((8 + _phpbs_release)) ;;
-        71) pkgver=7.1.33 ; pkgrel=$((4 + _phpbs_release)) ;;
-        70) pkgver=7.0.33 ; pkgrel=$((6 + _phpbs_release)) ;;
-        56) pkgver=5.6.40 ; pkgrel=$((4 + _phpbs_release)) ;;
-        55) pkgver=5.5.38 ; pkgrel=$((8 + _phpbs_release)) ;;
-        54) pkgver=5.4.45 ; pkgrel=$((2 + _phpbs_release)) ;;
-        53) pkgver=5.3.29 ; pkgrel=$((12 + _phpbs_release)) ;;
+        81) pkgver=8.1.2  ; pkgrel=$((2 + _phpbs_release)) ;;
+        80) pkgver=8.0.15 ; pkgrel=$((2 + _phpbs_release)) ;;
+        74) pkgver=7.4.27 ; pkgrel=$((5 + _phpbs_release)) ;;
+        73) pkgver=7.3.33 ; pkgrel=$((5 + _phpbs_release)) ;;
+        72) pkgver=7.2.34 ; pkgrel=$((9 + _phpbs_release)) ;;
+        71) pkgver=7.1.33 ; pkgrel=$((5 + _phpbs_release)) ;;
+        70) pkgver=7.0.33 ; pkgrel=$((7 + _phpbs_release)) ;;
+        56) pkgver=5.6.40 ; pkgrel=$((5 + _phpbs_release)) ;;
+        55) pkgver=5.5.38 ; pkgrel=$((9 + _phpbs_release)) ;;
+        54) pkgver=5.4.45 ; pkgrel=$((3 + _phpbs_release)) ;;
+        53) pkgver=5.3.29 ; pkgrel=$((13 + _phpbs_release)) ;;
         *)
             _phpbs_error_message "No such PHP version defined: ${_phpbase}!"
             return 1;
@@ -500,7 +500,7 @@ _phpbs_set_vars() {
         xml xsl xmlreader xmlwriter wddx dom simplexml openssl pdo mysql phar \
         pcntl posix shmop sockets sysvmsg sysvsem sysvshm tokenizer \
         dba pgsql odbc firebird interbase dblib sqlite mssql \
-        gd exif \
+        gd exif tidy iconv xmlrpc \
         bcmath gmp \
         zip bz2 json \
         readline fileinfo ctype recode mbstring pspell enchant intl calendar gettext \
