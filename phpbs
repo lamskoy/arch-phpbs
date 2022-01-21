@@ -212,6 +212,7 @@ _phpbs_set_vars() {
     # Makedepends building
     ###########################################################################
     makedepends=(
+        'acl'
         'libtool'
         'autoconf'
         'automake'
@@ -229,6 +230,7 @@ _phpbs_set_vars() {
         'pcre'
         'apache'
         'ncurses'
+        'libxcrypt'
         'systemd'
         'systemd-libs'
         'coreutils'
@@ -476,7 +478,7 @@ _phpbs_set_vars() {
     _make_dependencies_snmp=('net-snmp')
     _make_dependencies_sqlite=('sqlite')
     _make_dependencies_pspell=('aspell')
-    _make_dependencies_imap=('c-client')
+    _make_dependencies_imap=('c-client' 'pam')
     _make_dependencies_recode=('recode')
 
     # CONSTRAINTS
@@ -548,7 +550,7 @@ _phpbs_set_vars() {
                         elif(( ! _build_shared_openssl && _phpbase < 74)); then
                             _phpconfig+=" --with-openssl=/usr "
                         fi
-                        makedepends+=('openssl')
+                        makedepends+=('openssl' 'e2fsprogs')
                         if ((_build_openssl_v10_patch)); then
                             makedepends+=('openssl-1.0')
                         fi
@@ -1581,6 +1583,8 @@ package_php___PHPBASE___-apache___SUFFIX___() {
     pkgdesc="Apache SAPI for ${pkgbase}"
     depends=("${pkgbase}=${pkgver}" 'apache')
     depends+=("${_sapi_depends[@]}")
+    depends+=('libxcrypt');
+    depends+=('ncurses');
     backup=("${_build_apache_cfg}/${_apache_module_conf}")
     echo "# End of LoadModule in httpd.conf - see ArchWiki Apache HTTP Server"
     echo "LoadModule ${_build_mod_php_module} modules/lib${pkgbase}.so"
@@ -1612,11 +1616,9 @@ package_php___PHPBASE___-fpm___SUFFIX___() {
     _sapi="fpm"
     install="php-fpm.install"
     pkgdesc="FastCGI Process Manager for ${pkgbase}"
-    depends=("${pkgbase}=${pkgver}" 'systemd-libs')
+    depends=("${pkgbase}=${pkgver}" 'systemd-libs' 'acl')
     depends+=("${_sapi_depends[@]}")
-    backup=(
-          "${_build_sapi_ini_fpm}/php-fpm.conf"
-    )
+    backup=("${_build_sapi_ini_fpm}/php-fpm.conf")
     if ((_phpbase >= 70)); then
         backup+=("${_build_sapi_ini_fpm}/php-fpm.d/www.conf")
     fi
@@ -1643,7 +1645,7 @@ package_php___PHPBASE___-fpm___SUFFIX___() {
 package_php___PHPBASE___-embed___SUFFIX___() {
     _sapi="embed"
     pkgdesc="Embedded PHP SAPI library for ${pkgbase}"
-    depends=("${pkgbase}=${pkgver}" 'ncurses' 'systemd-libs')
+    depends=("${pkgbase}=${pkgver}" 'ncurses' 'systemd-libs' 'libxcrypt' 'acl' 'ncurses')
     depends+=("${_sapi_depends[@]}")
     options=('!emptydirs')
     if ((_build_ini_per_sapi || _build_per_sapi)); then
@@ -1772,7 +1774,7 @@ package_php___PHPBASE___-pecl___SUFFIX___() {
 # OpenSSL
 package_php___PHPBASE___-openssl___SUFFIX___() {
     pkgdesc="OpenSSL module for ${pkgbase}"
-    depends=("${pkgbase}=${pkgver}" "krb5")
+    depends=("${pkgbase}=${pkgver}" "krb5" 'e2fsprogs')
     if ((_build_openssl_v10_patch)); then
         depends+=("openssl-1.0")
     else
@@ -2119,15 +2121,18 @@ package_php___PHPBASE___-soap___SUFFIX___() {
 package_php___PHPBASE___-ftp___SUFFIX___() {
     pkgdesc="FTP module for ${pkgbase}"
     depends=("${pkgbase}=${pkgver}")
+    if ((_build_openssl_v10_patch)); then
+        depends+=("openssl-1.0")
+    else
+        depends+=("openssl")
+    fi
     _install_module ftp
 }
 
 # ldap
 package_php___PHPBASE___-ldap___SUFFIX___() {
     pkgdesc="ldap module for ${pkgbase}"
-    depends=("${pkgbase}=${pkgver}")
-    depends+=('libldap')
-    depends+=('libsasl')
+    depends=("${pkgbase}=${pkgver}" 'libldap' 'libsasl')
     _install_module ldap
 }
 
@@ -2135,6 +2140,11 @@ package_php___PHPBASE___-ldap___SUFFIX___() {
 package_php___PHPBASE___-snmp___SUFFIX___() {
     pkgdesc="snmp module for ${pkgbase}"
     depends=("${pkgbase}=${pkgver}" 'net-snmp')
+    if ((_build_openssl_v10_patch)); then
+        depends+=('openssl-1.0');
+    else
+        depends+=('openssl');
+    fi
     _install_module snmp
 }
 
@@ -2148,10 +2158,12 @@ package_php___PHPBASE___-xmlrpc___SUFFIX___() {
 # Imap
 package_php___PHPBASE___-imap___SUFFIX___() {
     pkgdesc="imap module for ${pkgbase}"
-    depends=(
-        'pam' 'krb5' 'c-client'
-        "${pkgbase}=${pkgver}"
-    )
+    depends=('pam' 'krb5' 'c-client' 'libxcrypt' "${pkgbase}=${pkgver}");
+    if ((_build_openssl_v10_patch)); then
+        depends+=("openssl-1.0")
+    else
+        depends+=("openssl")
+    fi
    _install_module imap
 }
 
