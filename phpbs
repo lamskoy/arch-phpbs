@@ -521,27 +521,27 @@ _phpbs_set_vars() {
             if ((${!_varname_enabled})); then
                 case "${i}" in
                     snmp)
-                        _build_depends_snmp=("${pkgbase}=${pkgver}" 'net-snmp')
+                        _ext_depends_snmp=("${pkgbase}=${pkgver}" 'net-snmp')
                         if ((_build_openssl_v10_patch)); then
-                            _build_depends_snmp+=('openssl-1.0');
+                            _ext_depends_snmp+=('openssl-1.0');
                         else
-                            _build_depends_snmp+=('openssl');
+                            _ext_depends_snmp+=('openssl');
                         fi
                         _phpextensions+=" --enable-${i}=shared "
                         ;;
                     ftp)
-                        _build_depends_ftp=("${pkgbase}=${pkgver}")
+                        _ext_depends_ftp=("${pkgbase}=${pkgver}")
                         if ((_build_openssl_v10_patch)); then
-                            _build_depends_ftp+=("openssl-1.0")
+                            _ext_depends_ftp+=("openssl-1.0")
                         else
-                            _build_depends_ftp+=("openssl")
+                            _ext_depends_ftp+=("openssl")
                         fi
                         _phpextensions+=" --enable-${i}=shared "
                         ;;
                     intl)
-                        _build_depends_intl=("${pkgbase}=${pkgver}")
-                        if (( ! _build_depends_intl )); then
-                            _build_depends_intl+=('icu')
+                        _ext_depends_intl=("${pkgbase}=${pkgver}")
+                        if (( ! _build_with_custom_icu )); then
+                            _ext_depends_intl+=('icu')
                         fi
                         _phpextensions+=" --enable-${i}=shared "
                         ;;
@@ -582,11 +582,11 @@ _phpbs_set_vars() {
                         fi
                         ;;
                     imap)
-                        _build_depends_imap=("${pkgbase}=${pkgver}" 'pam' 'krb5' 'c-client' 'libxcrypt')
+                        _ext_depends_imap=("${pkgbase}=${pkgver}" 'pam' 'krb5' 'c-client' 'libxcrypt')
                         if ((_build_openssl_v10_patch)); then
-                            _build_depends_imap+=("openssl-1.0")
+                            _ext_depends_imap+=("openssl-1.0")
                         else
-                            _build_depends_imap+=("openssl")
+                            _ext_depends_imap+=("openssl")
                         fi
                         _phpextensions+=" --with-${i}=shared,/usr --with-${i}-ssl=yes ";
                         ;;
@@ -643,21 +643,21 @@ _phpbs_set_vars() {
                                 --with-freetype-dir=/usr \
                                 "
                         fi
-                        _build_depends_gd=("${pkgbase}=${pkgver}" 'gd')
+                        _ext_depends_gd=("${pkgbase}=${pkgver}" 'gd')
                         if ((_build_bundled_gd)); then
-                            _build_depends_gd+=('libxpm' 'libpng' 'libjpeg')
+                            _ext_depends_gd+=('libxpm' 'libpng' 'libjpeg')
                         fi
                         if ((_phpbase >= 55 && _phpbase < 72)); then
-                            _build_depends_gd+=('libvpx');
+                            _ext_depends_gd+=('libvpx');
                         fi
                         ;;
                     mysql)
-                        _build_depends_mysql=("${pkgbase}=${pkgver}")
+                        _ext_depends_mysql=("${pkgbase}=${pkgver}")
                         if ((_build_shared_pdo)); then
-                            _build_depends_mysql+=("php${_phpbase}-pdo${_suffix}=${pkgver}")
+                            _ext_depends_mysql+=("php${_phpbase}-pdo${_suffix}=${pkgver}")
                         fi
                         if ((_build_shared_openssl)); then
-                            _build_depends_mysql+=("php${_phpbase}-openssl${_suffix}=${pkgver}")
+                            _ext_depends_mysql+=("php${_phpbase}-openssl${_suffix}=${pkgver}")
                         fi
                         if ((_build_shared_mysqlnd)); then
                             _phpextensions+=" --enable-${i}nd=shared "
@@ -682,9 +682,9 @@ _phpbs_set_vars() {
                             _phpextensions+=" --with-lmdb=/usr "
                             makedepends+=('lmdb')
                         fi
-                        _build_depends_dba=("${pkgbase}=${pkgver}" 'db')
+                        _ext_depends_dba=("${pkgbase}=${pkgver}" 'db')
                         if ((_build_uses_lmdb)); then
-                            _build_depends_dba+=('lmdb')
+                            _ext_depends_dba+=('lmdb')
                         fi
                         ;;
                     odbc)
@@ -697,9 +697,9 @@ _phpbs_set_vars() {
                                 --with-pdo-odbc=shared,unixODBC,/usr \
                             "
                         fi
-                        _build_depends_odbc=("${pkgbase}=${pkgver}" 'unixodbc')
+                        _ext_depends_odbc=("${pkgbase}=${pkgver}" 'unixodbc')
                         if ((_build_shared_pdo)); then
-                            _build_depends_odbc+=("php${_phpbase}-pdo${_suffix}=${pkgver}")
+                            _ext_depends_odbc+=("php${_phpbase}-pdo${_suffix}=${pkgver}")
                         fi
                         ;;
                     enchant | curl)
@@ -711,9 +711,9 @@ _phpbs_set_vars() {
                         ;;
                     pgsql)
                         _phpextensions+=" --with-${i}=shared,/usr --with-pdo-${i}=shared,/usr "
-                        _build_depends_pgsql=("${pkgbase}=${pkgver}" 'postgresql-libs')
+                        _ext_depends_pgsql=("${pkgbase}=${pkgver}" 'postgresql-libs')
                         if ((_build_shared_pdo)); then
-                            _build_depends_pgsql+=("php${_phpbase}-pdo${_suffix}=${pkgver}")
+                            _ext_depends_pgsql+=("php${_phpbase}-pdo${_suffix}=${pkgver}")
                         fi
                         ;;
                     ldap)
@@ -737,9 +737,9 @@ _phpbs_set_vars() {
                             _phpextensions+=" --enable-${i} --enable-huge-code-pages "
                         ;;
                     firebird)
-                        _build_depends_firebird=("${pkgbase}=${pkgver}" "libfbclient")
+                        _ext_depends_firebird=("${pkgbase}=${pkgver}" "libfbclient")
                         if ((_build_shared_pdo)); then
-                            _build_depends_firebird+=("php${_phpbase}-pdo${_suffix}=${pkgver}")
+                            _ext_depends_firebird+=("php${_phpbase}-pdo${_suffix}=${pkgver}")
                         fi
                         _phpextensions+=" --with-pdo-${i}=shared,/usr "
                         ;;
@@ -754,9 +754,9 @@ _phpbs_set_vars() {
                             # sqlite3 pdo_sqlite
                             _phpextensions+=" --with-pdo-${i}=shared,/usr --with-${i}3=shared,/usr"
                         fi
-                        _build_depends_sqlite=("${pkgbase}=${pkgver}" 'sqlite')
+                        _ext_depends_sqlite=("${pkgbase}=${pkgver}" 'sqlite')
                         if ((_build_shared_pdo)); then
-                            _build_depends_sqlite+=("php${_phpbase}-pdo${_suffix}=${pkgver}")
+                            _ext_depends_sqlite+=("php${_phpbase}-pdo${_suffix}=${pkgver}")
                         fi
                         ;;
                     sodium | mcrypt | xmlrpc | recode | ffi | iconv | xsl)
@@ -946,7 +946,7 @@ _phpbs_cat_pkgbuild_vars() {
         _phpbs_dump_string "${i}" "$1";
     done
     declare -p | awk '{ print $3; }' | grep -E '^_(suffix|pkgver|build|priority)' | grep -v _build_enable  >> "$1"
-    _arr_vars=('pkgname' 'source' 'depends' 'checkdepends' 'makedepends' 'arch' '_patches' '_sapi_depends')
+    _arr_vars=('pkgname' 'source' 'depends' 'checkdepends' 'makedepends' 'arch' '_patches' '_sapi_depends' '_ext_depends')
     for i in "${_arr_vars[@]}"; do
         _phpbs_dump_array "${i}" "$1"
     done
@@ -1958,7 +1958,7 @@ package_php___PHPBASE___-xsl___SUFFIX___() {
 # MySQL
 package_php___PHPBASE___-mysql___SUFFIX___() {
     pkgdesc="MySQL modules for ${pkgbase}"
-    depends=("${_build_depends_mysql[@]}")
+    depends=("${_ext_depends_mysql[@]}")
     _install_module mysqlnd
     _install_module mysql
     _install_module mysqli
@@ -1968,7 +1968,7 @@ package_php___PHPBASE___-mysql___SUFFIX___() {
 # pdo_sqlite + sqlite3
 package_php___PHPBASE___-sqlite___SUFFIX___() {
     pkgdesc="sqlite module for ${pkgbase}"
-    depends=("${_build_depends_sqlite[@]}")
+    depends=("${_ext_depends_sqlite[@]}")
     _install_module sqlite3
     _install_module pdo_sqlite
 }
@@ -1976,7 +1976,7 @@ package_php___PHPBASE___-sqlite___SUFFIX___() {
 # ODBC
 package_php___PHPBASE___-odbc___SUFFIX___() {
     pkgdesc="ODBC modules for ${pkgbase}"
-    depends=("${_build_depends_odbc[@]}")
+    depends=("${_ext_depends_odbc[@]}")
     _install_module odbc
     _install_module pdo_odbc
 }
@@ -1984,7 +1984,7 @@ package_php___PHPBASE___-odbc___SUFFIX___() {
 # PostgreSQL
 package_php___PHPBASE___-pgsql___SUFFIX___() {
     pkgdesc="PostgreSQL modules for ${pkgbase}"
-    depends=("${_build_depends_pgsql[@]}")
+    depends=("${_ext_depends_pgsql[@]}")
     _install_module pgsql
     _install_module pdo_pgsql
 }
@@ -1999,7 +1999,7 @@ package_php___PHPBASE___-interbase___SUFFIX___() {
 # firebird
 package_php___PHPBASE___-firebird___SUFFIX___() {
     pkgdesc="pdo_firebird module for ${pkgbase}"
-    depends=("${_build_depends_firebird[@]}")
+    depends=("${_ext_depends_firebird[@]}")
     _install_module pdo_firebird
 }
 
@@ -2020,7 +2020,7 @@ package_php___PHPBASE___-mssql___SUFFIX___() {
 # Dba
 package_php___PHPBASE___-dba___SUFFIX___() {
     pkgdesc="dba module for ${pkgbase}"
-    depends=("${_build_depends_dba[@]}")
+    depends=("${_ext_depends_dba[@]}")
     _install_module dba
 }
 
@@ -2031,7 +2031,7 @@ package_php___PHPBASE___-dba___SUFFIX___() {
 # Intl
 package_php___PHPBASE___-intl___SUFFIX___() {
     pkgdesc="intl module for ${pkgbase}"
-    depends=("${_build_depends_intl[@]}")
+    depends=("${_ext_depends_intl[@]}")
     if ((_build_with_custom_icu)); then
         # Patch to proper path inside intl.so
         patchelf --set-rpath "/usr/lib/${pkgbase}/icu${_pkgver_icu}/lib" "build-cli/modules/intl.so"
@@ -2075,7 +2075,7 @@ package_php___PHPBASE___-calendar___SUFFIX___() {
 # GD
 package_php___PHPBASE___-gd___SUFFIX___() {
     pkgdesc="gd module for ${pkgbase}"
-    depends=("${_build_depends_gd[@]}")
+    depends=("${_ext_depends_gd[@]}")
     _install_module gd
 }
 
@@ -2169,7 +2169,7 @@ package_php___PHPBASE___-soap___SUFFIX___() {
 # FTP
 package_php___PHPBASE___-ftp___SUFFIX___() {
     pkgdesc="FTP module for ${pkgbase}"
-    depends=("${_build_depends_ftp[@]}")
+    depends=("${_ext_depends_ftp[@]}")
     _install_module ftp
 }
 
@@ -2183,7 +2183,7 @@ package_php___PHPBASE___-ldap___SUFFIX___() {
 # SNMP
 package_php___PHPBASE___-snmp___SUFFIX___() {
     pkgdesc="snmp module for ${pkgbase}"
-    depends=("${_build_depends_snmp[@]}")
+    depends=("${_ext_depends_snmp[@]}")
     _install_module snmp
 }
 
@@ -2197,7 +2197,7 @@ package_php___PHPBASE___-xmlrpc___SUFFIX___() {
 # Imap
 package_php___PHPBASE___-imap___SUFFIX___() {
     pkgdesc="imap module for ${pkgbase}"
-    depends=("${_build_depends_imap[@]}")
+    depends=("${_ext_depends_imap[@]}")
    _install_module imap
 }
 
