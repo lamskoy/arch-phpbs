@@ -11,7 +11,7 @@ _phpbs_set_vars() {
     ###########################################################################
     _phpbase="$1"
     _suffix="$2"
-    _phpbs_release=0
+    _phpbs_release=1
 
     ###########################################################################
     # Versions defintions
@@ -527,7 +527,7 @@ _phpbs_set_vars() {
                         else
                             _ext_depends_snmp+=('openssl');
                         fi
-                        _phpextensions+=" --enable-${i}=shared "
+                        _phpextensions+=" --with-${i}=shared,/usr "
                         ;;
                     ftp)
                         _ext_depends_ftp=("${pkgbase}=${pkgver}")
@@ -762,7 +762,7 @@ _phpbs_set_vars() {
                     sodium | mcrypt | xmlrpc | recode | ffi | iconv | xsl)
                         _phpextensions+=" --with-${i}=shared "
                         ;;
-                    ldap | mssql | interbase |  gmp | bz2 | pspell | tidy | snmp | gettext)
+                    ldap | mssql | interbase |  gmp | bz2 | pspell | tidy | gettext)
                         _phpextensions+=" --with-${i}=shared,/usr "
                         ;;
                     mbstring)
@@ -946,7 +946,9 @@ _phpbs_cat_pkgbuild_vars() {
         _phpbs_dump_string "${i}" "$1";
     done
     declare -p | awk '{ print $3; }' | grep -E '^_(suffix|pkgver|build|priority)' | grep -v _build_enable  >> "$1"
-    _arr_vars=('pkgname' 'source' 'depends' 'checkdepends' 'makedepends' 'arch' '_patches' '_sapi_depends' '_ext_depends')
+    _arr_vars=('pkgname' 'source' 'depends' 'checkdepends' 'makedepends' 'arch' '_patches' '_sapi_depends')
+    _arr_vars+=("_ext_depends_snmp" "_ext_depends_ftp" "_ext_depends_intl" "_ext_depends_imap" "_ext_depends_gd" "_ext_depends_mysql")
+    _arr_vars+=("_ext_depends_dba" "_ext_depends_odbc" "_ext_depends_pgsql" "_ext_depends_firebird" "_ext_depends_sqlite")
     for i in "${_arr_vars[@]}"; do
         _phpbs_dump_array "${i}" "$1"
     done
