@@ -580,6 +580,12 @@ _phpbs_set_vars() {
                         if ((_build_openssl_v10_patch)); then
                             makedepends+=('openssl-1.0')
                         fi
+                        _ext_depends_openssl=("${pkgbase}=${pkgver}" "krb5" 'e2fsprogs')
+                        if ((_build_openssl_v10_patch)); then
+                            _ext_depends_openssl+=("openssl-1.0")
+                        else
+                            _ext_depends_openssl+=("openssl")
+                        fi
                         ;;
                     imap)
                         _ext_depends_imap=("${pkgbase}=${pkgver}" 'pam' 'krb5' 'c-client' 'libxcrypt')
@@ -782,6 +788,10 @@ _phpbs_set_vars() {
                         if ((_phpbase < 74)); then
                             _phpextensions+=" --enable-mbregex-backtrack "
                         fi
+                        _ext_depends_mbstring=("${pkgbase}=${pkgver}")
+                        if ((_phpbase >= 74)); then
+                            _ext_depends_mbstring+=('oniguruma')
+                        fi
                         ;;
                     *)
                         _phpextensions+=" --enable-${i}=shared "
@@ -949,6 +959,7 @@ _phpbs_cat_pkgbuild_vars() {
     _arr_vars=('pkgname' 'source' 'depends' 'checkdepends' 'makedepends' 'arch' '_patches' '_sapi_depends')
     _arr_vars+=("_ext_depends_snmp" "_ext_depends_ftp" "_ext_depends_intl" "_ext_depends_imap" "_ext_depends_gd" "_ext_depends_mysql")
     _arr_vars+=("_ext_depends_dba" "_ext_depends_odbc" "_ext_depends_pgsql" "_ext_depends_firebird" "_ext_depends_sqlite")
+    _arr_vars+=("_ext_depends_mbstring" "_ext_depends_openssl")
     for i in "${_arr_vars[@]}"; do
         _phpbs_dump_array "${i}" "$1"
     done
@@ -1854,12 +1865,7 @@ package_php___PHPBASE___-pecl___SUFFIX___() {
 # OpenSSL
 package_php___PHPBASE___-openssl___SUFFIX___() {
     pkgdesc="OpenSSL module for ${pkgbase}"
-    depends=("${pkgbase}=${pkgver}" "krb5" 'e2fsprogs')
-    if ((_build_openssl_v10_patch)); then
-        depends+=("openssl-1.0")
-    else
-        depends+=("openssl")
-    fi
+    depends=("${_ext_depends_openssl[@]}")
     _install_module openssl
 }
 
@@ -1881,10 +1887,7 @@ package_php___PHPBASE___-pdo___SUFFIX___() {
 # mbstring
 package_php___PHPBASE___-mbstring___SUFFIX___() {
     pkgdesc="mbstring module for ${pkgbase}"
-    depends=("${pkgbase}=${pkgver}")
-    if ((_phpbase >= 74)); then
-        depends+=('oniguruma')
-    fi
+    depends=("${_ext_depends_mbstring[@]}")
    _install_module mbstring
 }
 
