@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 build_sourcepkg=1
-build_binpkg=0
+build_binpkg=1
 skip_sums=0
 skip_build_check=1
 
