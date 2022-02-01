@@ -1308,6 +1308,7 @@ prepare() {
     fi
     rm -f tests/output/stream_isatty_*.phpt
     rm -f Zend/tests/arginfo_zpp_mismatch*.phpt
+    rm -f Zend/tests/bug79919.phpt
     popd
 }
 
