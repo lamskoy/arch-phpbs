@@ -11,7 +11,7 @@ _phpbs_set_vars() {
     ###########################################################################
     _phpbase="$1"
     _suffix="$2"
-    _phpbs_release=1
+    _phpbs_release=2
 
     ###########################################################################
     # Versions defintions
@@ -468,7 +468,7 @@ _phpbs_set_vars() {
     _make_dependencies_ldap=('libsasl' 'libldap')
     _make_dependencies_dblib=('freetds')
     _make_dependencies_pgsql=('postgresql-libs')
-    _make_dependencies_enchant=('enchant')
+    _make_dependencies_enchant=('enchant' 'libvoikko' 'hspell' 'hunspell' 'nuspell' 'aspell')
     _make_dependencies_curl=('curl')
     _make_dependencies_odbc=('unixodbc')
     _make_dependencies_dba=('db')
@@ -1493,7 +1493,6 @@ build() {
 check() {
     pushd "build-cli"
     # Check if sendmail was configured correctly (FS#47600)
-    #sapi/cli/php -n -r 'echo ini_get("sendmail_path");' | grep -q $(which sendmail)
     export REPORT_EXIT_STATUS=1
     export NO_INTERACTION=1
     export SKIP_ONLINE_TESTS=1
@@ -1953,7 +1952,7 @@ package_php___PHPBASE___-tidy___SUFFIX___() {
 # XSL
 package_php___PHPBASE___-xsl___SUFFIX___() {
     pkgdesc="xsl module for ${pkgbase}"
-    depends=("php${_phpbase}-xml${_suffix}=${pkgver}")
+    depends=("php${_phpbase}-xml${_suffix}=${pkgver}" "php${_phpbase}-dom${_suffix}=${pkgver}")
     depends+=('libxslt')
     _install_module xsl
 }
@@ -2126,7 +2125,7 @@ package_php___PHPBASE___-gmp___SUFFIX___() {
 # Enchant
 package_php___PHPBASE___-enchant___SUFFIX___() {
     pkgdesc="enchant module for ${pkgbase}"
-    depends=("${pkgbase}=${pkgver}" 'enchant')
+    depends=("${pkgbase}=${pkgver}" 'enchant' 'libvoikko' 'hspell' 'hunspell' 'nuspell' 'aspell')
     _install_module enchant
 }
 
