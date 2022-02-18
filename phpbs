@@ -108,6 +108,12 @@ _phpbs_set_vars() {
     # Timezonedb patches implemented for PHP 5.6+
     # Welcome to contribute for 5.3-5.5 incl
     _build_system_timezonedb=$((_phpbase >= 56));
+    # LiteSpeed SAPI is enabled differently in PHP < 7.4
+    if ((_phpbase < 74)); then
+        _build_sapi_litespeed="--with-litespeed"
+    else
+        _build_sapi_litespeed="--enable-litespeed"
+    fi
     ###########################################################################
     # PHP Modules: Enable/Disable flags
     # PHP Modules: Shared/Static modes
@@ -191,6 +197,7 @@ _phpbs_set_vars() {
     _build_sapi_ini_fpm="${_build_sapi_ini_cli}"
     _build_sapi_ini_apache="${_build_sapi_ini_cli}"
     _build_sapi_ini_phpdbg="${_build_sapi_ini_cli}"
+    _build_sapi_ini_litespeed="${_build_sapi_ini_cli}"
     _build_conf_d="${_build_sapi_ini_cli}/conf.d"
 
     if ((_build_ini_per_sapi)); then
@@ -200,6 +207,7 @@ _phpbs_set_vars() {
         _build_sapi_ini_fpm+="/fpm"
         _build_sapi_ini_apache+="/apache"
         _build_sapi_ini_phpdbg+="/phpdbg"
+        _build_sapi_ini_litespeed+="/litespeed"
     fi
 
     ###########################################################################
@@ -446,7 +454,7 @@ _phpbs_set_vars() {
     fi
 
     # Basic submodules. Cli shoud be first!
-    _subpkg=('cli' 'cgi' 'fpm' 'embed' 'apache')
+    _subpkg=('cli' 'cgi' 'fpm' 'embed' 'apache' 'litespeed')
     # PEAR should come before PECL!!!
     _subpkg+=('pear' 'pecl')
 
@@ -1442,6 +1450,22 @@ build() {
         --disable-phpdbg \
     "
 
+    # litespeed
+    _cflags="${CFLAGS}"
+    export CFLAGS="${CFLAGS} -Wno-error=format-security"
+    _build_sapi "litespeed" "\
+        --sysconfdir=/${_build_sapi_ini_litespeed} \
+        --with-config-file-path=/${_build_sapi_ini_litespeed} \
+        --disable-all \
+        --disable-cgi \
+        --disable-cli \
+        --disable-fpm \
+        --disable-embed \
+        --disable-phpdbg \
+        ${_build_sapi_litespeed} \
+    "
+    export CFLAGS="${_cflags}"
+
     # fpm
     _build_sapi "fpm" "\
         --sysconfdir=/${_build_sapi_ini_fpm} \
@@ -1471,6 +1495,7 @@ build() {
         --enable-embed=shared \
         --enable-fpm \
         ${_phpextensions_fpm} \
+        ${_build_sapi_litespeed} \
     "
     fi
 
@@ -1778,6 +1803,30 @@ package_php___PHPBASE___-phpdbg___SUFFIX___() {
     popd
 }
 # phpdbg sapi end
+
+# litespeed sapi
+package_php___PHPBASE___-litespeed___SUFFIX___() {
+    _sapi="litespeed"
+    pkgdesc="LiteSpeed SAPI for ${pkgbase}"
+    depends=("${pkgbase}=${pkgver}")
+    depends+=("${_sapi_depends[@]}")
+    if ((_build_ini_per_sapi || _build_per_sapi)); then
+        pushd "build-${_sapi}"
+    else
+        pushd "build-cli"
+    fi
+    if ((_build_ini_per_sapi)); then
+        install -D -m644 "../php-${pkgver}/php.ini-production" "${pkgdir}/${_build_sapi_ini_cgi}/php.ini"
+        backup=("${_build_sapi_ini_cgi}/php.ini")
+    fi
+    case "${_phpbase}" in
+        *)
+            install -D -m755 sapi/litespeed/php "${pkgdir}/usr/bin/ls${pkgbase}"
+            ;;
+    esac
+    popd
+}
+# litespeed sapi end
 
 ###############################################################################
 # PEAR + PECL
