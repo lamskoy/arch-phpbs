@@ -17,9 +17,10 @@ _phpbs_set_vars() {
     # Versions defintions
     ###########################################################################
     case "$_phpbase" in
-        81) pkgver=8.1.5  ; pkgrel=$((2 + _phpbs_release)) ;;
-        80) pkgver=8.0.18 ; pkgrel=$((2 + _phpbs_release)) ;;
-        74) pkgver=7.4.29 ; pkgrel=$((1 + _phpbs_release)) ;;
+        82) pkgver=8.2.0RC2  ; pkgrel=3 ;;
+        81) pkgver=8.1.10  ; pkgrel=1 ;;
+        80) pkgver=8.0.23 ; pkgrel=1 ;;
+        74) pkgver=7.4.30 ; pkgrel=$((1 + _phpbs_release)) ;;
         73) pkgver=7.3.33 ; pkgrel=$((5 + _phpbs_release)) ;;
         72) pkgver=7.2.34 ; pkgrel=$((9 + _phpbs_release)) ;;
         71) pkgver=7.1.33 ; pkgrel=$((5 + _phpbs_release)) ;;
@@ -276,7 +277,9 @@ _phpbs_set_vars() {
         "php-makefile-patcher.php"
         "php-apache.conf"
     )
-    if ((_phpbase >= 53 && _phpbase <= 54)); then
+    if ((_phpbase == 82)); then
+        source+=("https://downloads.php.net/~sergey/php-\${pkgver}.tar.xz")
+    elif ((_phpbase >= 53 && _phpbase <= 54)); then
         source+=("https://php.net/distributions/php-\${pkgver}.tar.bz2")
     else
         source+=("https://php.net/distributions/php-\${pkgver}.tar.xz")
@@ -372,7 +375,7 @@ _phpbs_set_vars() {
     fi
 
 
-    if ((_phpbase >= 53 && _phpbase <= 81)); then
+    if ((_phpbase >= 53 && _phpbase <= 82)); then
         # Include CVEs and other useful patches from debian
         _patches+=("debian-php-${pkgver}.patch")
     fi
@@ -1113,7 +1116,7 @@ _phpbs_join() {
 }
 
 _phpbs_main() {
-    local _phpbs_packages_8=(81 80)
+    local _phpbs_packages_8=(82 81 80)
     local _phpbs_packages_7=(74 73 72 71 70)
     local _phpbs_packages_5=(56 55 54 53)
     local _phpbs_all_packages=(${_phpbs_packages_8[@]} ${_phpbs_packages_7[@]} ${_phpbs_packages_5[@]})
@@ -1197,13 +1200,13 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             shift;
             ;;
         all)
-            _phpbs_selected_packages+=(81 80)
+            _phpbs_selected_packages+=(82 81 80)
             _phpbs_selected_packages+=(74 73 72 71 70)
             _phpbs_selected_packages+=(56 55 54 53)
             shift
             ;;
         php8)
-            _phpbs_selected_packages+=(81 80)
+            _phpbs_selected_packages+=(82 81 80)
             shift
             ;;
         php7)
