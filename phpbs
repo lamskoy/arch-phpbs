@@ -17,18 +17,18 @@ _phpbs_set_vars() {
     # Versions defintions
     ###########################################################################
     case "$_phpbase" in
-        82) pkgver=8.2.0RC3  ; pkgrel=1 ;;
-        81) pkgver=8.1.11  ; pkgrel=1 ;;
-        80) pkgver=8.0.24 ; pkgrel=1 ;;
-        74) pkgver=7.4.32 ; pkgrel=1 ;;
-        73) pkgver=7.3.33 ; pkgrel=$((5 + _phpbs_release)) ;;
-        72) pkgver=7.2.34 ; pkgrel=$((9 + _phpbs_release)) ;;
-        71) pkgver=7.1.33 ; pkgrel=$((5 + _phpbs_release)) ;;
-        70) pkgver=7.0.33 ; pkgrel=$((7 + _phpbs_release)) ;;
-        56) pkgver=5.6.40 ; pkgrel=$((5 + _phpbs_release)) ;;
-        55) pkgver=5.5.38 ; pkgrel=$((9 + _phpbs_release)) ;;
-        54) pkgver=5.4.45 ; pkgrel=$((3 + _phpbs_release)) ;;
-        53) pkgver=5.3.29 ; pkgrel=$((13 + _phpbs_release)) ;;
+        82) pkgver=8.2.0RC5  ; pkgrel=2 ;;
+        81) pkgver=8.1.12  ; pkgrel=2 ;;
+        80) pkgver=8.0.25 ; pkgrel=2 ;;
+        74) pkgver=7.4.33 ; pkgrel=2 ;;
+        73) pkgver=7.3.33 ; pkgrel=$((6 + _phpbs_release)) ;;
+        72) pkgver=7.2.34 ; pkgrel=$((10 + _phpbs_release)) ;;
+        71) pkgver=7.1.33 ; pkgrel=$((6 + _phpbs_release)) ;;
+        70) pkgver=7.0.33 ; pkgrel=$((8 + _phpbs_release)) ;;
+        56) pkgver=5.6.40 ; pkgrel=$((6 + _phpbs_release)) ;;
+        55) pkgver=5.5.38 ; pkgrel=$((10 + _phpbs_release)) ;;
+        54) pkgver=5.4.45 ; pkgrel=$((4 + _phpbs_release)) ;;
+        53) pkgver=5.3.29 ; pkgrel=$((14 + _phpbs_release)) ;;
         *)
             _phpbs_error_message "No such PHP version defined: ${_phpbase}!"
             return 1;
@@ -303,6 +303,9 @@ _phpbs_set_vars() {
     fi
     if ((_build_openssl_v10_patch && _phpbase <= 54)); then
         _patches+=("openssl-sslv3.patch")
+    fi
+    if ((_phpbase <= 80)); then
+        _patches+=("openssl-sslv3-consts.patch")
     fi
 
     if ((_phpbase >= 54 && _phpbase <= 59 && _build_update_sqlite)); then
@@ -973,7 +976,7 @@ _phpbs_cat_pkgbuild_vars() {
         _phpbs_dump_string "${i}" "$1";
     done
     declare -p | awk '{ print $3; }' | grep -E '^_(suffix|pkgver|build|priority)' | grep -v _build_enable  >> "$1"
-    _arr_vars=('pkgname' 'source' 'depends' 'checkdepends' 'makedepends' 'arch' '_patches' '_sapi_depends')
+    _arr_vars=('pkgname' 'source' 'depends' 'makedepends' 'arch' '_patches' '_sapi_depends')
     _arr_vars+=("_ext_depends_snmp" "_ext_depends_ftp" "_ext_depends_intl" "_ext_depends_imap" "_ext_depends_gd" "_ext_depends_mysql")
     _arr_vars+=("_ext_depends_dba" "_ext_depends_odbc" "_ext_depends_pgsql" "_ext_depends_firebird" "_ext_depends_sqlite")
     _arr_vars+=("_ext_depends_mbstring" "_ext_depends_openssl")
