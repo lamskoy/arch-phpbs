@@ -1,5 +1,5 @@
 ## phpbs
-### PHP Building system for all PHP versions packages from 5.3 to 8.1
+### PHP Building system for all PHP versions packages from 5.3 to 8.2
 
 #### How to install it? 
 ```
@@ -22,9 +22,9 @@ To build specific version:
 make php81
 ```
 
-Available targets are : php81 php80 php74 php73 php72 php71 php70 php56 php55 php54 php53
+Available targets are : php82 php81 php80 php74 php73 php72 php71 php70 php56 php55 php54 php53
 
-To build all php8.x (8.0 and 8.1):
+To build all php8.x (8.0, 8.1, 8.2):
 ```
 make php8
 ```
