@@ -9,4 +9,4 @@ packages-src/*
 sources/*
 phpbuilder.*
 nohup.out
-
+.history
