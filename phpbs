@@ -304,7 +304,7 @@ _phpbs_set_vars() {
         _patches+=("openssl-sslv3.patch")
     fi
    
-    if (( ! _build_forced_openssl_11 && _phpbase <= 80 )); then
+    if ((_phpbase >= 50 && _phpbase <= 74)); then
         _patches+=("openssl-sslv3-consts.patch")
     fi
 
