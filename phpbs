@@ -304,8 +304,11 @@ _phpbs_set_vars() {
         _patches+=("openssl-sslv3.patch")
     fi
    
-    if ((_phpbase >= 50 && _phpbase <= 74)); then
+    if ((_phpbase >= 50 && _phpbase <= 73)); then
         _patches+=("openssl-sslv3-consts.patch")
+    fi
+    if ((_phpbase >= 50 && _phpbase <= 55)); then
+        _patches+=("dba-5.3-support.patch")
     fi
 
     if ((_phpbase >= 54 && _phpbase <= 59 && _build_update_sqlite)); then
