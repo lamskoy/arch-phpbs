@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-build_sourcepkg=1
-build_binpkg=1
-skip_sums=0
+build_sourcepkg="${BUILD_SOUCE:-1}"
+build_binpkg="${BUILD_BINARY:-1}"
+skip_sums="${SKIP_SUMS:-0}"
 skip_build_check=1
 
 _phpbs_set_vars() {
@@ -1199,11 +1199,11 @@ _phpbs_run_help() {
     _phpbs_help_message ""
     _phpbs_help_message "For example:"
     _phpbs_help_message ""
-    _phpbs_help_message "To build single PHP 8.1: \e[32mmake php81\e[0m"
+    _phpbs_help_message "To build single PHP 8.2: \e[32mmake php82\e[0m"
     _phpbs_help_message ""
     _phpbs_help_message "To build PHP 5.x (5.6, 5.4, 5.3) and 7.1: \e[32mmake php5 php71\e[0m"
     _phpbs_help_message ""
-    _phpbs_help_message "To build 8.1 all 7.x: \e[32mmake php81 php7\e[0m"
+    _phpbs_help_message "To build 8.1 and all 7.x: \e[32mmake php81 php7\e[0m"
     _phpbs_help_message ""
     _phpbs_help_message "To build all versions: \e[32mmake all\e[0m"
     _phpbs_help_message ""
@@ -1246,10 +1246,6 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             ;;
         --suffix=*)
             _phpbs_suffix="$(echo $1 | sed -E 's/--suffix=//g')"
-            shift
-            ;;
-        --sources=*)
-            #build_sourcepkg="$(echo $1 | sed -E 's/--sources=//g')"
             shift
             ;;
         *)
