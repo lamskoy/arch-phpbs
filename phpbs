@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-build_sourcepkg="${BUILD_SOUCE:-1}"
+build_sourcepkg="${BUILD_SOURCE:-1}"
 build_binpkg="${BUILD_BINARY:-1}"
 skip_sums="${SKIP_SUMS:-0}"
 skip_build_check=1
