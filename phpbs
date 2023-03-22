@@ -17,8 +17,8 @@ _phpbs_set_vars() {
     # Versions defintions
     ###########################################################################
     case "$_phpbase" in
-        82) pkgver=8.2.3  ; pkgrel=1 ;;
-        81) pkgver=8.1.16  ; pkgrel=1 ;;
+        82) pkgver=8.2.4  ; pkgrel=1 ;;
+        81) pkgver=8.1.17  ; pkgrel=1 ;;
         80) pkgver=8.0.28 ; pkgrel=1 ;;
         74) pkgver=7.4.33 ; pkgrel=$((_phpbs_release)) ;;
         73) pkgver=7.3.33 ; pkgrel=$((6 + _phpbs_release)) ;;
