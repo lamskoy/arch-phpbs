@@ -17,9 +17,9 @@ _phpbs_set_vars() {
     # Versions defintions
     ###########################################################################
     case "$_phpbase" in
-        82) pkgver=8.2.8  ; pkgrel=1 ;;
-        81) pkgver=8.1.21  ; pkgrel=1 ;;
-        80) pkgver=8.0.29 ; pkgrel=1 ;;
+        82) pkgver=8.2.11  ; pkgrel=1 ;;
+        81) pkgver=8.1.24  ; pkgrel=1 ;;
+        80) pkgver=8.0.30 ; pkgrel=1 ;;
         74) pkgver=7.4.33 ; pkgrel=$((_phpbs_release)) ;;
         73) pkgver=7.3.33 ; pkgrel=$((6 + _phpbs_release)) ;;
         72) pkgver=7.2.34 ; pkgrel=$((10 + _phpbs_release)) ;;
@@ -1548,6 +1548,8 @@ build() {
 }
 
 check() {
+    export CFLAGS="${CFLAGS} -fPIC"
+    export CXXFLAGS="${CXXFLAGS} -fPIC"
     pushd "build-cli"
     # Check if sendmail was configured correctly (FS#47600)
     export REPORT_EXIT_STATUS=1
