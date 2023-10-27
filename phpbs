@@ -12,11 +12,12 @@ _phpbs_set_vars() {
     _phpbase="$1"
     _suffix="$2"
     _phpbs_release=4
-
+    _pkg_custom_source=""
     ###########################################################################
     # Versions defintions
     ###########################################################################
     case "$_phpbase" in
+        83) pkgver=8.3.0RC5; pkgrel=1; _pkg_custom_source="https://downloads.php.net/~jakub/php-${pkgver}.tar.xz" ;;
         82) pkgver=8.2.12  ; pkgrel=1 ;;
         81) pkgver=8.1.25  ; pkgrel=1 ;;
         80) pkgver=8.0.30 ; pkgrel=1 ;;
@@ -49,6 +50,7 @@ _phpbs_set_vars() {
     _phpextensions_fpm=''
     # Magic comes here
     _php_major_minor=$(echo "$pkgver" | grep -Eo '([0-9]+\.[0-9]+)')
+    _php_full=$(echo "$pkgver" | grep -Eo '([0-9]+\.[0-9]+\.[0-9]+)')
 
     ###########################################################################
     # Extensions priority. Lower number = higher priority
@@ -278,11 +280,14 @@ _phpbs_set_vars() {
         "php-makefile-patcher.php"
         "php-apache.conf"
     )
-    if ((_phpbase >= 53 && _phpbase <= 54)); then
+    if [[ "${_pkg_custom_source}" != "" ]]; then
+        source+=("${_pkg_custom_source}")
+    elif ((_phpbase >= 53 && _phpbase <= 54)); then
         source+=("https://php.net/distributions/php-\${pkgver}.tar.bz2")
     else
         source+=("https://php.net/distributions/php-\${pkgver}.tar.xz")
     fi
+
     if ((_build_with_custom_icu)); then
         source+=('https://github.com/unicode-org/icu/releases/download/release-${_pkgver_icu}/icu4c-${_pkgver_icu/-/_}-src.tgz')
     fi
@@ -383,7 +388,7 @@ _phpbs_set_vars() {
 
     if ((_phpbase >= 53 && _phpbase <= 73)); then
         # Include CVEs and other useful patches from debian
-        _patches+=("debian-php-${pkgver}.patch")
+        _patches+=("debian-php-${_php_full}.patch")
     elif ((_phpbase >= 74 && _phpbase <= 82)); then
         _patches+=("debian-php-${_php_major_minor}.patch")
     fi
@@ -1139,7 +1144,7 @@ _phpbs_join() {
 }
 
 _phpbs_main() {
-    local _phpbs_packages_8=(82 81 80)
+    local _phpbs_packages_8=(83 82 81 80)
     local _phpbs_packages_7=(74 73 72 71 70)
     local _phpbs_packages_5=(56 55 54 53)
     local _phpbs_all_packages=(${_phpbs_packages_8[@]} ${_phpbs_packages_7[@]} ${_phpbs_packages_5[@]})
@@ -1223,13 +1228,13 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             shift;
             ;;
         all)
-            _phpbs_selected_packages+=(82 81 80)
+            _phpbs_selected_packages+=(83 82 81 80)
             _phpbs_selected_packages+=(74 73 72 71 70)
             _phpbs_selected_packages+=(56 55 54 53)
             shift
             ;;
         php8)
-            _phpbs_selected_packages+=(82 81 80)
+            _phpbs_selected_packages+=(83 82 81 80)
             shift
             ;;
         php7)
