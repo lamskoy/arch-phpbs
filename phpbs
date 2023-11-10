@@ -17,7 +17,7 @@ _phpbs_set_vars() {
     # Versions defintions
     ###########################################################################
     case "$_phpbase" in
-        83) pkgver=8.3.0RC5; pkgrel=1; _pkg_custom_source="https://downloads.php.net/~jakub/php-${pkgver}.tar.xz" ;;
+        83) pkgver=8.3.0RC6; pkgrel=1; _pkg_custom_source="https://downloads.php.net/~eric/php-${pkgver}.tar.xz" ;;
         82) pkgver=8.2.12  ; pkgrel=1 ;;
         81) pkgver=8.1.25  ; pkgrel=1 ;;
         80) pkgver=8.0.30 ; pkgrel=1 ;;
