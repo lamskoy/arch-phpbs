@@ -17,8 +17,8 @@ _phpbs_set_vars() {
     # Versions defintions
     ###########################################################################
     case "$_phpbase" in
-        83) pkgver=8.3.0RC6; pkgrel=1; _pkg_custom_source="https://downloads.php.net/~eric/php-${pkgver}.tar.xz" ;;
-        82) pkgver=8.2.12  ; pkgrel=1 ;;
+        83) pkgver=8.3.0   ; pkgrel=1 ;;
+        82) pkgver=8.2.13  ; pkgrel=1 ;;
         81) pkgver=8.1.25  ; pkgrel=1 ;;
         80) pkgver=8.0.30 ; pkgrel=1 ;;
         74) pkgver=7.4.33 ; pkgrel=$((_phpbs_release)) ;;
@@ -290,6 +290,9 @@ _phpbs_set_vars() {
 
     if ((_build_with_custom_icu)); then
         source+=('https://github.com/unicode-org/icu/releases/download/release-${_pkgver_icu}/icu4c-${_pkgver_icu/-/_}-src.tgz')
+    fi
+    if ((_phpbase <= 82)); then
+        _patches+=("php-libxml.patch")
     fi
     if ((_phpbase >= 71 && _phpbase <= 73)); then
         _patches+=("php71-phar-names.patch")
