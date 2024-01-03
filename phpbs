@@ -291,7 +291,7 @@ _phpbs_set_vars() {
     if ((_build_with_custom_icu)); then
         source+=('https://github.com/unicode-org/icu/releases/download/release-${_pkgver_icu}/icu4c-${_pkgver_icu/-/_}-src.tgz')
     fi
-    if ((_phpbase <= 82)); then
+    if ((_phpbase < 81)); then
         _patches+=("php-libxml.patch")
     fi
     if ((_phpbase >= 71 && _phpbase <= 73)); then
