@@ -252,6 +252,8 @@ _phpbs_set_vars() {
     )
     if ((_phpbase <= 53)); then
         makedepends+=('autoconf2.13')
+    elif ((_phpbase <= 56)); then
+        makedepends+=('autoconf2.70')
     fi
 
 
@@ -1344,6 +1346,8 @@ prepare() {
 
     if ((_phpbase <= 53)); then
         PHP_AUTOCONF="/usr/bin/autoconf-2.13" ./buildconf --force
+    elif ((_phpbase <= 56)); then
+        PHP_AUTOCONF="/usr/bin/autoconf-2.70" ./buildconf --force
     else
         ./buildconf --force
     fi
