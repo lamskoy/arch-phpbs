@@ -11,7 +11,7 @@ _phpbs_set_vars() {
     ###########################################################################
     _phpbase="$1"
     _suffix="$2"
-    _phpbs_release=4
+    _phpbs_release=5
     _pkg_custom_source=""
     ###########################################################################
     # Versions defintions
@@ -252,8 +252,6 @@ _phpbs_set_vars() {
     )
     if ((_phpbase <= 53)); then
         makedepends+=('autoconf2.13')
-    elif ((_phpbase <= 56)); then
-        makedepends+=('autoconf2.70')
     fi
 
 
@@ -304,6 +302,9 @@ _phpbs_set_vars() {
         _patches+=("php54-phar-names.patch")
     elif ((_phpbase == 53)); then
         _patches+=("php53-phar-names.patch")
+    fi
+    if ((_phpbase <= 56)); then
+        _patches+=("php56-autoconf.patch")
     fi
     if ((_build_openssl_v11_patch)); then
         _patches+=("openssl-1.1.patch")
@@ -1346,8 +1347,6 @@ prepare() {
 
     if ((_phpbase <= 53)); then
         PHP_AUTOCONF="/usr/bin/autoconf-2.13" ./buildconf --force
-    elif ((_phpbase <= 56)); then
-        PHP_AUTOCONF="/usr/bin/autoconf-2.70" ./buildconf --force
     else
         ./buildconf --force
     fi
@@ -1740,7 +1739,7 @@ package_php___PHPBASE___-cgi___SUFFIX___() {
 package_php___PHPBASE___-apache___SUFFIX___() {
     _sapi="apache"
     _build_mod_php_so="libphp${_suffix_so}.so"
-    _build_mod_php_module="php_module${_suffix_so}"
+    _build_mod_php_module="php${_suffix_so}_module"
     _build_build_php_script_name="php${_suffix_so}-script"
     _apache_module_conf="${pkgbase}-module.conf"
     pkgdesc="Apache SAPI for ${pkgbase}"
