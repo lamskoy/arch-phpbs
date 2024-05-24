@@ -11,14 +11,14 @@ _phpbs_set_vars() {
     ###########################################################################
     _phpbase="$1"
     _suffix="$2"
-    _phpbs_release=5
+    _phpbs_release=6
     _pkg_custom_source=""
     ###########################################################################
     # Versions defintions
     ###########################################################################
     case "$_phpbase" in
-        83) pkgver=8.3.6   ; pkgrel=1 ;;
-        82) pkgver=8.2.18  ; pkgrel=1 ;;
+        83) pkgver=8.3.7   ; pkgrel=1 ;;
+        82) pkgver=8.2.19  ; pkgrel=1 ;;
         81) pkgver=8.1.28  ; pkgrel=1 ;;
         80) pkgver=8.0.30 ; pkgrel=1 ;;
         74) pkgver=7.4.33 ; pkgrel=$((_phpbs_release)) ;;
@@ -293,6 +293,9 @@ _phpbs_set_vars() {
     fi
     if ((_phpbase < 81)); then
         _patches+=("php-libxml.patch")
+    fi
+    if ((_phpbase <= 74)); then
+        _patches+=("litespeed-phpheader.patch")
     fi
     if ((_phpbase >= 71 && _phpbase <= 73)); then
         _patches+=("php71-phar-names.patch")
@@ -1393,8 +1396,8 @@ _build_sapi() {
 # BUILD them all
 ################################################################################
 build() {
-    export CFLAGS="${CFLAGS} -fPIC"
-    export CXXFLAGS="${CXXFLAGS} -fPIC"
+    export CFLAGS="${CFLAGS} -fPIC -Wno-error=incompatible-pointer-types"
+    export CXXFLAGS="${CXXFLAGS} -fPIC -Wno-error=incompatible-pointer-types -std=c++17"
     export EXTENSION_DIR="/usr/lib/${pkgbase}/modules"
     if ((_build_openssl_v10_patch)); then
         export PHP_OPENSSL_DIR="/usr/lib/openssl-1.0"
