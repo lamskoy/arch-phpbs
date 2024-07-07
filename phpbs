@@ -11,16 +11,16 @@ _phpbs_set_vars() {
     ###########################################################################
     _phpbase="$1"
     _suffix="$2"
-    _phpbs_release=6
+    _phpbs_release=8
     _pkg_custom_source=""
     ###########################################################################
     # Versions defintions
     ###########################################################################
     case "$_phpbase" in
-        83) pkgver=8.3.7   ; pkgrel=1 ;;
-        82) pkgver=8.2.19  ; pkgrel=1 ;;
-        81) pkgver=8.1.28  ; pkgrel=1 ;;
-        80) pkgver=8.0.30 ; pkgrel=1 ;;
+        83) pkgver=8.3.9   ; pkgrel=1 ;;
+        82) pkgver=8.2.21  ; pkgrel=1 ;;
+        81) pkgver=8.1.29  ; pkgrel=2 ;;
+        80) pkgver=8.0.30 ; pkgrel=3 ;;
         74) pkgver=7.4.33 ; pkgrel=$((_phpbs_release)) ;;
         73) pkgver=7.3.33 ; pkgrel=$((6 + _phpbs_release)) ;;
         72) pkgver=7.2.34 ; pkgrel=$((10 + _phpbs_release)) ;;
@@ -276,7 +276,6 @@ _phpbs_set_vars() {
     # Sources
     source=(
         "make-tests.patch"
-        "pear-config-patcher.php"
         "php-makefile-patcher.php"
         "php-apache.conf"
     )
@@ -293,6 +292,14 @@ _phpbs_set_vars() {
     fi
     if ((_phpbase < 81)); then
         _patches+=("php-libxml.patch")
+    fi
+    if ((_phpbase >= 80 && _phpbase <= 81)); then
+        _patches+=("libxml-21200-php-8.0.patch")
+    elif ((_phpbase >= 70 && _phpbase < 80)); then
+        _patches+=("libxml-21200-php-7.0.patch")
+    fi
+    if ((_phpbase >= 74 && _phpbase < 81)); then
+        _patches+=("icu-74-php-7.4.patch")
     fi
     if ((_phpbase <= 74)); then
         _patches+=("litespeed-phpheader.patch")
@@ -427,7 +434,6 @@ _phpbs_set_vars() {
         --program-suffix=\${_phpbase}\${_suffix} \
         --with-config-file-scan-dir=/\${_build_conf_d} \
         --enable-filter \
-        --with-pear \
         --enable-session \
         --with-mhash=/usr \
         --with-kerberos \
@@ -481,8 +487,6 @@ _phpbs_set_vars() {
 
     # Basic submodules. Cli shoud be first!
     _subpkg=('cli' 'cgi' 'fpm' 'embed' 'apache' 'litespeed')
-    # PEAR should come before PECL!!!
-    _subpkg+=('pear' 'pecl')
 
     if ((_build_phpdbg)); then
         _subpkg+=('phpdbg');
@@ -1875,86 +1879,6 @@ package_php___PHPBASE___-litespeed___SUFFIX___() {
     popd
 }
 # litespeed sapi end
-
-###############################################################################
-# PEAR + PECL
-###############################################################################
-
-# PEAR
-package_php___PHPBASE___-pear___SUFFIX___() {
-    pkgdesc="PHP Extension and Application Repository (PEAR) for ${pkgbase}"
-    depends=(
-        "${pkgbase}=${pkgver}"
-        "php${_phpbase}-xml${_suffix}=${pkgver}"
-        "php${_phpbase}-cli${_suffix}=${pkgver}"
-        "php${_phpbase}-phar${_suffix}=${pkgver}"
-    )
-    #backup=("${_build_sapi_ini_cli}/pear.conf")
-    install -d "${pkgdir}/usr/share/${pkgbase}/pear/htdocs"
-    install -d "${pkgdir}/usr/share/${pkgbase}/pear/data"
-    install -d "${pkgdir}/usr/share/${pkgbase}/pear/doc"
-    install -d "${pkgdir}/usr/share/${pkgbase}/pear/test"
-    install -d "${pkgdir}/usr/share/${pkgbase}/pear/cfg"
-    install -d "${pkgdir}/var/lib/${pkgbase}/pear/cache"
-    install -d "${pkgdir}/var/lib/${pkgbase}/pear/metadata"
-    install -d "${pkgdir}/var/lib/${pkgbase}/pear/download"
-    install -d "${pkgdir}/var/lib/${pkgbase}/pear/temp"
-    export PHP_PEAR_SYSCONF_DIR="${_build_sapi_ini_cli}"
-    pushd build-cli
-
-    cp "${srcdir}/php-${pkgver}/pear/install-pear-nozlib.phar" "pear/install-pear-nozlib.phar"
-
-    INSTALL_ROOT="${pkgdir}/" ./sapi/cli/php -n \
-        -d extension=modules/xml.so \
-        -d extension=modules/phar.so \
-        -d date.timezone=UTC -d memory_limit=64M -d short_open_tag=0 -d safe_mode=0 \
-        -d 'error_reporting=E_ALL&~E_DEPRECATED' -d detect_unicode=0 "pear/install-pear-nozlib.phar" \
-        -ds       "${_phpbase}${_suffix}" \
-        --php      "/usr/bin/${pkgbase}" \
-        --bin      "/usr/bin" \
-        --man      "/usr/share/man" \
-        --dir      "/usr/share/${pkgbase}/pear" \
-        --data     "/usr/share/${pkgbase}/pear/data" \
-        --doc      "/usr/share/${pkgbase}/pear/doc" \
-        --test     "/usr/share/${pkgbase}/pear/test" \
-        --www      "/usr/share/${pkgbase}/pear/htdocs" \
-        --config   "/usr/share/${pkgbase}/pear/cfg" \
-        --force
-    # fix pear.conf with unserialize
-    # first arg: path to pear.conf
-    # second arg: PEAR base /var path
-    ./sapi/cli/php -n ../pear-config-patcher.php \
-        "${pkgdir}/${_build_sapi_ini_cli}/pear.conf" \
-        "/var/lib/${pkgbase}/pear"
-    popd
-    # remove unneeded files
-    rm -rf "${pkgdir}"/.{channels,depdb,depdblock,filemap,lock,registry}
-    #rename binaries
-    for i in pear peardev pecl; do
-        _target="${pkgbase/php/$i}"
-        # fix hardcoded paths
-        sed "s|PHP=php|PHP=\"/usr/bin/${pkgbase}\"|g; s|\"/usr/bin/php\"|\"/usr/bin/${pkgbase}\"|g; s| -n | |g" \
-            -i "${pkgdir}/usr/bin/${i}"
-        if [[ "$i" == "pecl" ]]; then
-            echo "Moving ${pkgdir}/usr/bin/${i} => ${srcdir}/${pkgbase}-pecl-bin/"
-            mkdir -p "${srcdir}/${pkgbase}-pecl-bin/"
-            mv "${pkgdir}/usr/bin/pecl" "${srcdir}/${pkgbase}-pecl-bin/"
-        else
-            echo "Moving ${pkgdir}/usr/bin/${i} => ${pkgdir}/usr/bin/${_target}"
-            mv "${pkgdir}/usr/bin/${i}" "${pkgdir}/usr/bin/${_target}"
-        fi
-    done
-}
-# PEAR end
-
-# PECL
-package_php___PHPBASE___-pecl___SUFFIX___() {
-    pkgdesc="PHP Extension Community Library (PECL) for ${pkgbase}"
-    depends=("php${_phpbase}-pear${_suffix}=${pkgver}")
-    _target="${pkgbase/php/pecl}"
-    install -D -m755 "${srcdir}/${pkgbase}-pecl-bin/pecl" "${pkgdir}/usr/bin/${_target}"
-}
-# PECL end
 
 ###############################################################################
 # PHP Modules: First need
