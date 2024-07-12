@@ -16,7 +16,14 @@ _phpbs_set_vars() {
     ###########################################################################
     # Versions defintions
     ###########################################################################
+    pkgbase_rc=""
     case "$_phpbase" in
+        84)
+            pkgbase_rc=alpha1;
+            pkgver="8.4.0${pkgbase_rc}";
+            pkgrel=1 ;
+            _pkg_custom_source="https://downloads.php.net/~saki/php-${pkgver}.tar.xz"
+            ;;
         83) pkgver=8.3.9   ; pkgrel=1 ;;
         82) pkgver=8.2.21  ; pkgrel=1 ;;
         81) pkgver=8.1.29  ; pkgrel=2 ;;
@@ -400,7 +407,6 @@ _phpbs_set_vars() {
     if ((_phpbase >= 53 && _phpbase <= 54)); then
         _patches+=("php-tests.patch")
     fi
-
 
     if ((_phpbase >= 53 && _phpbase <= 73)); then
         # Include CVEs and other useful patches from debian
@@ -1007,7 +1013,7 @@ _phpbs_cat_pkgbuild_vars() {
     echo "# AUR php55 Contributor: Raphaël Doursenaud <rdoursenaud@gmail.com> " >> "${1}"
     echo "# AUR php53 Contriburor: Felix Yan <felixonmars@archlinux.org> " >> "${1}"
     echo "###############################################################################" >> "${1}"
-    local _arr_vars=('_phpbase' '_suffix' 'pkgver' 'pkgrel' 'pkgbase' 'pkgdesc' '_cppflags')
+    local _arr_vars=('_phpbase' '_suffix' 'pkgver' 'pkgbase_rc' 'pkgrel' 'pkgbase' 'pkgdesc' '_cppflags')
     for i in "${_arr_vars[@]}"; do
         _phpbs_dump_string "${i}" "$1";
     done
@@ -1157,7 +1163,7 @@ _phpbs_join() {
 }
 
 _phpbs_main() {
-    local _phpbs_packages_8=(83 82 81 80)
+    local _phpbs_packages_8=(84 83 82 81 80)
     local _phpbs_packages_7=(74 73 72 71 70)
     local _phpbs_packages_5=(56 55 54 53)
     local _phpbs_all_packages=(${_phpbs_packages_8[@]} ${_phpbs_packages_7[@]} ${_phpbs_packages_5[@]})
@@ -1241,13 +1247,13 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             shift;
             ;;
         all)
-            _phpbs_selected_packages+=(83 82 81 80)
+            _phpbs_selected_packages+=(84 83 82 81 80)
             _phpbs_selected_packages+=(74 73 72 71 70)
             _phpbs_selected_packages+=(56 55 54 53)
             shift
             ;;
         php8)
-            _phpbs_selected_packages+=(83 82 81 80)
+            _phpbs_selected_packages+=(84 83 82 81 80)
             shift
             ;;
         php7)
@@ -1828,7 +1834,11 @@ package_php___PHPBASE___-embed___SUFFIX___() {
         backup=("${_build_sapi_ini_embed}/php.ini")
     fi
     make -j1 INSTALL_ROOT="${pkgdir}" PHP_SAPI=embed install-sapi
-    mv "${pkgdir}/usr/lib/libphp${_suffix_so}.so" "${pkgdir}/usr/lib/lib${pkgbase}.so"
+    if ((_phpbase < 84)); then
+        mv "${pkgdir}/usr/lib/libphp${_suffix_so}.so" "${pkgdir}/usr/lib/lib${pkgbase}.so"
+    else
+        mv "${pkgdir}/usr/lib/${pkgbase}/libphp${_suffix_so}.so" "${pkgdir}/usr/lib/lib${pkgbase}.so"
+    fi
     popd
     patchelf --set-soname "lib${pkgbase}.so" "${pkgdir}/usr/lib/lib${pkgbase}.so"
 }
@@ -1838,7 +1848,7 @@ package_php___PHPBASE___-embed___SUFFIX___() {
 package_php___PHPBASE___-phpdbg___SUFFIX___() {
     _sapi="phpdbg"
     options=('!emptydirs')
-    pkgdesc="Interactive PHP debugger for ${pkgbase} ($_sapi)"
+    pkgdesc="Interactive PHP debugger for ${pkgbase}"
     depends=("${pkgbase}=${pkgver}")
     depends+=("${_sapi_depends[@]}")
     if ((_build_ini_per_sapi || _build_per_sapi)); then
