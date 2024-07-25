@@ -285,7 +285,7 @@ _phpbs_set_vars() {
     if ((_phpbase >= 74 && _phpbase < 81)); then
         _patches+=("icu-74-php-7.4.patch")
     fi
-    if ((_phpbase <= 74)); then
+    if ((_phpbase <= 74 && _phpbase >= 70)); then
         _patches+=("litespeed-phpheader.patch")
     fi
     if ((_phpbase >= 71 && _phpbase <= 73)); then
