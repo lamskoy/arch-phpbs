@@ -11,7 +11,6 @@ _phpbs_set_vars() {
     ###########################################################################
     _phpbase="$1"
     _suffix="$2"
-    _phpbs_release=9
     _pkg_custom_source=""
     ###########################################################################
     # Versions defintions
@@ -28,12 +27,12 @@ _phpbs_set_vars() {
         82) pkgver=8.2.21  ; pkgrel=3 ;;
         81) pkgver=8.1.29  ; pkgrel=3 ;;
         80) pkgver=8.0.30 ; pkgrel=4 ;;
-        74) pkgver=7.4.33 ; pkgrel=$((_phpbs_release)) ;;
-        73) pkgver=7.3.33 ; pkgrel=$((7 + _phpbs_release)) ;;
-        72) pkgver=7.2.34 ; pkgrel=$((11 + _phpbs_release)) ;;
-        71) pkgver=7.1.33 ; pkgrel=$((7 + _phpbs_release)) ;;
-        70) pkgver=7.0.33 ; pkgrel=$((9 + _phpbs_release)) ;;
-        56) pkgver=5.6.40 ; pkgrel=$((7 + _phpbs_release)) ;;
+        74) pkgver=7.4.33 ; pkgrel=9 ;;
+        73) pkgver=7.3.33 ; pkgrel=16 ;;
+        72) pkgver=7.2.34 ; pkgrel=20 ;;
+        71) pkgver=7.1.33 ; pkgrel=15 ;;
+        70) pkgver=7.0.33 ; pkgrel=14 ;;
+        56) pkgver=5.6.40 ; pkgrel=12 ;;
         *)
             _phpbs_error_message "No such PHP version defined: ${_phpbase}!"
             return 1;
@@ -213,7 +212,8 @@ _phpbs_set_vars() {
     # Version-specific variables: PHP 5
     ###########################################################################
     _build_openssl_v11_patch=$((_phpbase >= 56 && _phpbase < 70));
-    _build_forced_openssl_11=$((_phpbase >= 70 && _phpbase <= 80));
+    _build_forced_openssl_11=0;
+    # $((_phpbase >= 74 && _phpbase <= 80));
     _build_update_sqlite=0
 
     ###########################################################################
@@ -299,7 +299,7 @@ _phpbs_set_vars() {
     if ((_build_openssl_v11_patch)); then
         _patches+=("openssl-1.1.patch")
     fi
-    if ((_phpbase >= 50 && _phpbase <= 73)); then
+    if ((_phpbase >= 50 && _phpbase <= 80)); then
         _patches+=("openssl-sslv3-consts.patch")
     fi
     if ((_phpbase >= 54 && _phpbase <= 59 && _build_update_sqlite)); then
@@ -547,7 +547,7 @@ _phpbs_set_vars() {
                         fi
                         ;;
                     openssl)
-                        if ((_build_shared_openssl && _phpbase < 74)); then
+                        if ((_build_shared_openssl && _phpbase <= 73)); then
                             _build_shared_openssl=0
                         fi
                         if ((_build_shared_openssl && _phpbase >= 74)); then
@@ -1315,11 +1315,12 @@ _build_sapi() {
 # BUILD them all
 ################################################################################
 build() {
-    export CFLAGS="${CFLAGS} -fPIC -Wno-error=incompatible-pointer-types"
-    export CXXFLAGS="${CXXFLAGS} -fPIC -Wno-error=incompatible-pointer-types -std=c++17"
-    if ((_phpbase <= 73)); then
-        export CFLAGS="${CFLAGS} -Wno-implicit-function-declaration -fpermissive"
-        export CXXFLAGS="${CXXFLAGS} -Wno-implicit-function-declaration -fpermissive"
+    if ((_phpbase <= 80)); then
+        export CFLAGS="${CFLAGS} -fPIC -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration -fpermissive"
+        export CXXFLAGS="${CXXFLAGS} -fPIC -Wno-error=incompatible-pointer-types -std=c++17 -Wno-implicit-function-declaration -fpermissive"
+    else
+        export CFLAGS="${CFLAGS} -fPIC -Wno-error=incompatible-pointer-types"
+        export CXXFLAGS="${CXXFLAGS} -fPIC -Wno-error=incompatible-pointer-types -std=c++17"
     fi
     export EXTENSION_DIR="/usr/lib/${pkgbase}/modules"
     if ((_build_forced_openssl_11)); then
