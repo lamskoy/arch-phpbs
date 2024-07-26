@@ -211,9 +211,6 @@ _phpbs_set_vars() {
     ###########################################################################
     # Version-specific variables: PHP 5
     ###########################################################################
-    _build_openssl_v11_patch=$((_phpbase >= 56 && _phpbase < 70));
-    _build_forced_openssl_11=0;
-    # $((_phpbase >= 74 && _phpbase <= 80));
     _build_update_sqlite=0
 
     ###########################################################################
@@ -296,7 +293,7 @@ _phpbs_set_vars() {
     if ((_phpbase <= 56)); then
         _patches+=("php56-autoconf.patch")
     fi
-    if ((_build_openssl_v11_patch)); then
+    if ((_phpbase >= 56 && _phpbase < 70)); then
         _patches+=("openssl-1.1.patch")
     fi
     if ((_phpbase >= 50 && _phpbase <= 80)); then
@@ -507,20 +504,12 @@ _phpbs_set_vars() {
                 case "${i}" in
                     snmp)
                         _ext_depends_snmp=("${pkgbase}=${pkgver}" 'net-snmp')
-                        if ((_build_forced_openssl_11)); then
-                            _ext_depends_snmp+=('openssl-1.1');
-                        else
-                            _ext_depends_snmp+=('openssl');
-                        fi
+                        _ext_depends_snmp+=('openssl');
                         _phpextensions+=" --with-${i}=shared,/usr "
                         ;;
                     ftp)
                         _ext_depends_ftp=("${pkgbase}=${pkgver}")
-                        if ((_build_forced_openssl_11)); then
-                            _ext_depends_ftp+=('openssl-1.1');
-                        else
-                            _ext_depends_ftp+=("openssl")
-                        fi
+                        _ext_depends_ftp+=("openssl")
                         _phpextensions+=" --enable-${i}=shared "
                         ;;
                     intl)
@@ -559,26 +548,13 @@ _phpbs_set_vars() {
                         elif(( ! _build_shared_openssl && _phpbase < 74)); then
                             _phpconfig+=" --with-openssl=/usr "
                         fi
-                        makedepends+=('e2fsprogs')
-                        if ((_build_forced_openssl_11)); then
-                            makedepends+=('openssl-1.1');
-                        else
-                            makedepends+=('openssl')
-                        fi
+                        makedepends+=('e2fsprogs' 'openssl')
                         _ext_depends_openssl=("${pkgbase}=${pkgver}" "krb5" 'e2fsprogs')
-                        if ((_build_forced_openssl_11)); then
-                            _ext_depends_openssl+=("openssl-1.1")
-                        else
-                            _ext_depends_openssl+=("openssl")
-                        fi
+                        _ext_depends_openssl+=("openssl")
                         ;;
                     imap)
                         _ext_depends_imap=("${pkgbase}=${pkgver}" 'pam' 'krb5' 'c-client' 'libxcrypt')
-                        if ((_build_forced_openssl_11)); then
-                            _ext_depends_imap+=("openssl-1.1")                        
-                        else
-                            _ext_depends_imap+=("openssl")
-                        fi
+                        _ext_depends_imap+=("openssl")
                         _phpextensions+=" --with-${i}=shared,/usr --with-${i}-ssl=yes ";
                         ;;
                     pdo)
@@ -1323,10 +1299,6 @@ build() {
         export CXXFLAGS="${CXXFLAGS} -fPIC -Wno-error=incompatible-pointer-types -std=c++17"
     fi
     export EXTENSION_DIR="/usr/lib/${pkgbase}/modules"
-    if ((_build_forced_openssl_11)); then
-        export PHP_OPENSSL_DIR="/usr/lib/openssl-1.1"
-        export PKG_CONFIG_PATH="/usr/lib/openssl-1.1/pkgconfig"
-    fi
     if [[ ! -z "${_cppflags}" ]]; then
         CPPFLAGS+=" $_cppflags "
     fi
