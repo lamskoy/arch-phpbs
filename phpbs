@@ -23,8 +23,8 @@ _phpbs_set_vars() {
             pkgrel=1 ;
             _pkg_custom_source="https://downloads.php.net/~calvinb/php-${pkgver}.tar.xz"
             ;;
-        83) pkgver=8.3.9   ; pkgrel=3 ;;
-        82) pkgver=8.2.21  ; pkgrel=3 ;;
+        83) pkgver=8.3.10   ; pkgrel=1 ;;
+        82) pkgver=8.2.22  ; pkgrel=1 ;;
         81) pkgver=8.1.29  ; pkgrel=3 ;;
         80) pkgver=8.0.30 ; pkgrel=4 ;;
         74) pkgver=7.4.33 ; pkgrel=9 ;;
@@ -269,8 +269,9 @@ _phpbs_set_vars() {
     else
         source+=("https://php.net/distributions/php-\${pkgver}.tar.xz")
     fi
-
-    _patches=('libxml-pear.patch')
+    if ((_phpbase <= 81)); then
+        _patches=('libxml-pear.patch')
+    fi
     if ((_phpbase < 81)); then
         _patches+=("php-libxml.patch")
     fi
