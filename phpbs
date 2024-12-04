@@ -17,15 +17,12 @@ _phpbs_set_vars() {
     ###########################################################################
     pkgbase_rc=""
     case "$_phpbase" in
-        84)
-            pkgbase_rc=beta3;
-            pkgver="8.4.0${pkgbase_rc}";
-            pkgrel=1 ;
-            _pkg_custom_source="https://downloads.php.net/~calvinb/php-${pkgver}.tar.xz"
-            ;;
-        83) pkgver=8.3.10   ; pkgrel=1 ;;
-        82) pkgver=8.2.22  ; pkgrel=1 ;;
-        81) pkgver=8.1.29  ; pkgrel=3 ;;
+        # Actual versions
+        84) pkgver=8.4.1   ; pkgrel=1 ;;
+        83) pkgver=8.3.14  ; pkgrel=1 ;;
+        82) pkgver=8.2.26  ; pkgrel=1 ;;
+        81) pkgver=8.1.31  ; pkgrel=1 ;;
+        # Not updated anymore
         80) pkgver=8.0.30 ; pkgrel=4 ;;
         74) pkgver=7.4.33 ; pkgrel=9 ;;
         73) pkgver=7.3.33 ; pkgrel=16 ;;
@@ -269,13 +266,17 @@ _phpbs_set_vars() {
     else
         source+=("https://php.net/distributions/php-\${pkgver}.tar.xz")
     fi
+
     if ((_phpbase <= 81)); then
         _patches=('libxml-pear.patch')
+    fi
+    if ((_phpbase >= 84)); then
+        _patches+=("apache-php8.4.patch")
     fi
     if ((_phpbase < 81)); then
         _patches+=("php-libxml.patch")
     fi
-    if ((_phpbase >= 80 && _phpbase <= 81)); then
+    if ((_phpbase == 80)); then
         _patches+=("libxml-21200-php-8.0.patch")
     elif ((_phpbase >= 70 && _phpbase < 80)); then
         _patches+=("libxml-21200-php-7.0.patch")
@@ -366,7 +367,11 @@ _phpbs_set_vars() {
     elif ((_phpbase >= 74 && _phpbase <= 82)); then
         _patches+=("debian-php-${_php_major_minor}.patch")
     fi
-    _patches+=('php-phpinfo.patch')
+    if ((_phpbase <= 81)); then
+        _patches+=('php-phpinfo.patch')
+    else
+        _patches+=('php-phpinfo-8.4.patch')
+    fi
     if ((_build_system_timezonedb)); then
         # This is useful debian patch for autodetection of timezone
         # AND linking with system tzdata instead of bundled
@@ -1208,9 +1213,11 @@ prepare() {
     sed -E "s|(include_dir[\t ]*=.*php)|\1${_phpbase}${_suffix}|g" \
         -i scripts/php-config.in
 
-    echo "[SED] sapi/apache2handler/config.m4"
-    sed -e '/APACHE_THREADED_MPM=/d' \
-        -i sapi/apache2handler/config.m4
+    if ((_phpbase < 84)); then
+        echo "[SED] sapi/apache2handler/config.m4"
+        sed -e '/APACHE_THREADED_MPM=/d' \
+            -i sapi/apache2handler/config.m4
+    fi
 
     echo "[SED] sapi/fpm/Makefile.frag"
     # sed -e 's#php-fpm\$(program_suffix)#php\$(program_suffix)-fpm#'
