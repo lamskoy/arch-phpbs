@@ -29,7 +29,7 @@ _phpbs_set_vars() {
         72) pkgver=7.2.34 ; pkgrel=20 ;;
         71) pkgver=7.1.33 ; pkgrel=15 ;;
         70) pkgver=7.0.33 ; pkgrel=14 ;;
-        56) pkgver=5.6.40 ; pkgrel=12 ;;
+        56) pkgver=5.6.40 ; pkgrel=14 ;;
         *)
             _phpbs_error_message "No such PHP version defined: ${_phpbase}!"
             return 1;
