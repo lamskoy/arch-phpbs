@@ -10,3 +10,4 @@ sources/*
 phpbuilder.*
 nohup.out
 .history
+_*.sh
