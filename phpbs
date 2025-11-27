@@ -18,10 +18,10 @@ _phpbs_set_vars() {
     pkgbase_rc=""
     case "$_phpbase" in
         # Actual versions
-        84) pkgver=8.4.1   ; pkgrel=1 ;;
-        83) pkgver=8.3.14  ; pkgrel=1 ;;
-        82) pkgver=8.2.26  ; pkgrel=1 ;;
-        81) pkgver=8.1.31  ; pkgrel=1 ;;
+        84) pkgver=8.4.8   ; pkgrel=1 ;;
+        83) pkgver=8.3.19  ; pkgrel=1 ;;
+        82) pkgver=8.2.29  ; pkgrel=1 ;;
+        81) pkgver=8.1.33  ; pkgrel=1 ;;        
         # Not updated anymore
         80) pkgver=8.0.30 ; pkgrel=4 ;;
         74) pkgver=7.4.33 ; pkgrel=9 ;;
@@ -29,7 +29,7 @@ _phpbs_set_vars() {
         72) pkgver=7.2.34 ; pkgrel=20 ;;
         71) pkgver=7.1.33 ; pkgrel=15 ;;
         70) pkgver=7.0.33 ; pkgrel=14 ;;
-        56) pkgver=5.6.40 ; pkgrel=12 ;;
+        56) pkgver=5.6.40 ; pkgrel=14 ;;
         *)
             _phpbs_error_message "No such PHP version defined: ${_phpbase}!"
             return 1;
@@ -280,6 +280,9 @@ _phpbs_set_vars() {
         _patches+=("libxml-21200-php-8.0.patch")
     elif ((_phpbase >= 70 && _phpbase < 80)); then
         _patches+=("libxml-21200-php-7.0.patch")
+    elif ((_phpbase >= 56 && _phpbase < 70)); then
+        _patches+=("libxml-21200-php-5.6.patch")
+        _patches+=("scanf-php-5.6.patch")
     fi
     if ((_phpbase >= 74 && _phpbase < 81)); then
         _patches+=("icu-74-php-7.4.patch")
@@ -1300,7 +1303,7 @@ _build_sapi() {
 ################################################################################
 build() {
     if ((_phpbase <= 80)); then
-        export CFLAGS="${CFLAGS} -fPIC -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration -fpermissive"
+        export CFLAGS="${CFLAGS} -fPIC -std=gnu89 -Wno-error=incompatible-pointer-types -Wno-implicit-function-declaration -fpermissive"
         export CXXFLAGS="${CXXFLAGS} -fPIC -Wno-error=incompatible-pointer-types -std=c++17 -Wno-implicit-function-declaration -fpermissive"
     else
         export CFLAGS="${CFLAGS} -fPIC -Wno-error=incompatible-pointer-types"
