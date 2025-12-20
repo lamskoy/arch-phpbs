@@ -18,10 +18,10 @@ _phpbs_set_vars() {
     pkgbase_rc=""
     case "$_phpbase" in
         # Actual versions
-        84) pkgver=8.4.8   ; pkgrel=1 ;;
-        83) pkgver=8.3.19  ; pkgrel=1 ;;
-        82) pkgver=8.2.29  ; pkgrel=1 ;;
-        81) pkgver=8.1.33  ; pkgrel=1 ;;        
+        84) pkgver=8.4.16   ; pkgrel=1 ;;
+        83) pkgver=8.3.29  ; pkgrel=1 ;;
+        82) pkgver=8.2.30  ; pkgrel=1 ;;
+        81) pkgver=8.1.34  ; pkgrel=1 ;;
         # Not updated anymore
         80) pkgver=8.0.30 ; pkgrel=4 ;;
         74) pkgver=7.4.33 ; pkgrel=9 ;;
@@ -1732,7 +1732,7 @@ package_php___PHPBASE___-litespeed___SUFFIX___() {
     fi
     case "${_phpbase}" in
         *)
-            install -D -m755 sapi/litespeed/php "${pkgdir}/usr/bin/ls${pkgbase}"
+            install -D -m755 sapi/litespeed/lsphp "${pkgdir}/usr/bin/ls${pkgbase}"
             ;;
     esac
     popd
