@@ -22,9 +22,9 @@ To build specific version:
 make php81
 ```
 
-Available targets are : php82 php81 php80 php74 php73 php72 php71 php70 php56 php55 php54 php53
+Available targets are : php85 php84 php83 php82 php81 php80 php74 php73 php72 php71 php70 php56 php55 php54 php53
 
-To build all php8.x (8.0, 8.1, 8.2):
+To build all php8.x (8.0, 8.1, 8.2, 8.3, 8.4, 8.5):
 ```
 make php8
 ```
