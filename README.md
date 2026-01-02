@@ -1,5 +1,5 @@
 ## phpbs
-### PHP Building system for all PHP versions packages from 5.3 to 8.2
+### PHP Building system for all PHP versions packages from 5.3 to 8.5
 
 #### How to install it? 
 ```
