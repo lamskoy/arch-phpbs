@@ -18,14 +18,15 @@ _phpbs_set_vars() {
     pkgbase_rc=""
     case "$_phpbase" in
         # Actual versions
-        85) pkgver=8.5.8   ; pkgrel=2 ;;
-        84) pkgver=8.4.23  ; pkgrel=2 ;;
-        83) pkgver=8.3.32  ; pkgrel=1 ;;
-        82) pkgver=8.2.32  ; pkgrel=1 ;;
-        # Not updated anymore
-        81) pkgver=8.1.34  ; pkgrel=1 ;;
-        80) pkgver=8.0.30 ; pkgrel=5 ;;
-        74) pkgver=7.4.33 ; pkgrel=11 ;;
+        85) pkgver=8.5.12   ; pkgrel=1 ;;
+        84) pkgver=8.4.27  ; pkgrel=1 ;;
+        83) pkgver=8.3.36  ; pkgrel=1 ;;
+        82) pkgver=8.2.35  ; pkgrel=1 ;;
+        # Not updated anymore, some CVEs fix only
+        81) pkgver=8.1.34  ; pkgrel=2 ;;
+        80) pkgver=8.0.30 ; pkgrel=6 ;;
+        74) pkgver=7.4.33 ; pkgrel=12 ;;
+        # Not maintained anymore
         73) pkgver=7.3.33 ; pkgrel=17 ;;
         72) pkgver=7.2.34 ; pkgrel=21 ;;
         71) pkgver=7.1.33 ; pkgrel=16 ;;
@@ -272,6 +273,9 @@ _phpbs_set_vars() {
     fi
     if ((_phpbase <= 80)); then
         _patches+=('libxml-attribute-php-8.0.patch')
+    fi
+    if ((_phpbase >= 74 && _phpbase <= 81)); then
+        _patches+=("php${_phpbase}-cve-2026-109618-109619.patch")
     fi
     if ((_phpbase >= 84)); then
         _patches+=("apache-php8.4.patch")
