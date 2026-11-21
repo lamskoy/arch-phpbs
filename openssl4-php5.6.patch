@@ -1,0 +1,333 @@
+--- a/ext/openssl/php_openssl.h
++++ b/ext/openssl/php_openssl.h
+@@ -21,6 +21,37 @@
+ 
+ #ifndef PHP_OPENSSL_H
+ #define PHP_OPENSSL_H
++
++/*
++ * OpenSSL 4.x compatibility shims for the PHP 5.6 openssl extension.
++ * Legacy symbols below were removed from the OpenSSL 4.x headers; the
++ * replacements are present since OpenSSL 1.1.0.
++ */
++#include <openssl/opensslv.h>
++
++#if OPENSSL_VERSION_NUMBER >= 0x30000000L
++# ifndef ASN1_STRING_data
++#  define ASN1_STRING_data(x) ASN1_STRING_get0_data(x)
++# endif
++# ifndef EVP_dss1
++#  define EVP_dss1() EVP_sha1()
++# endif
++# ifndef EVP_MD_CTX_cleanup
++#  define EVP_MD_CTX_cleanup(ctx) EVP_MD_CTX_reset(ctx)
++# endif
++#endif
++
++/*
++ * Direct member access to the ASN1_STRING family was removed when the
++ * structs became opaque in OpenSSL 4.0. Use the accessors on OpenSSL >= 1.1.0.
++ */
++#if OPENSSL_VERSION_NUMBER >= 0x10100000L
++# define PHP_OPENSSL_ASN1_STRING_DATA(x)   (ASN1_STRING_get0_data(x))
++# define PHP_OPENSSL_ASN1_STRING_LENGTH(x) (ASN1_STRING_length(x))
++#else
++# define PHP_OPENSSL_ASN1_STRING_DATA(x)   ((x)->data)
++# define PHP_OPENSSL_ASN1_STRING_LENGTH(x) ((x)->length)
++#endif
+ /* HAVE_OPENSSL would include SSL MySQL stuff */
+ #ifdef HAVE_OPENSSL_EXT
+ extern zend_module_entry openssl_module_entry;
+--- a/ext/openssl/openssl.c
++++ b/ext/openssl/openssl.c
+@@ -823,7 +823,7 @@
+ 
+ static void add_assoc_asn1_string(zval * val, char * key, ASN1_STRING * str) /* {{{ */
+ {
+-	add_assoc_stringl(val, key, (char *)str->data, str->length, 1);
++	add_assoc_stringl(val, key, (char *)PHP_OPENSSL_ASN1_STRING_DATA(str), PHP_OPENSSL_ASN1_STRING_LENGTH(str), 1);
+ }
+ /* }}} */
+ 
+@@ -853,12 +853,12 @@
+ 	}
+ 
+ 	if (ASN1_STRING_length(timestr) < 13) {
+-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "unable to parse time string %s correctly", timestr->data);
++		php_error_docref(NULL TSRMLS_CC, E_WARNING, "unable to parse time string %s correctly", (const char *)PHP_OPENSSL_ASN1_STRING_DATA(timestr));
+ 		return (time_t)-1;
+ 	}
+ 
+ 	if (ASN1_STRING_type(timestr) == V_ASN1_GENERALIZEDTIME && ASN1_STRING_length(timestr) < 15) {
+-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "unable to parse time string %s correctly", timestr->data);
++		php_error_docref(NULL TSRMLS_CC, E_WARNING, "unable to parse time string %s correctly", (const char *)PHP_OPENSSL_ASN1_STRING_DATA(timestr));
+ 		return (time_t)-1;
+ 	}
+ 
+@@ -1817,10 +1817,11 @@
+ 
+ 	out = BIO_new(BIO_s_mem());
+ 	if (out && PEM_write_bio_PUBKEY(out, pkey))  {
+-		BUF_MEM *bio_buf;
++		char *bio_data;
++		int bio_len;
+ 
+-		BIO_get_mem_ptr(out, &bio_buf);
+-		RETVAL_STRINGL((char *)bio_buf->data, bio_buf->length, 1);
++		bio_len = BIO_get_mem_data(out, &bio_data);
++		RETVAL_STRINGL((char *)bio_data, bio_len, 1);
+ 	}
+ 	goto cleanup;
+ 
+@@ -1926,11 +1927,12 @@
+ 		X509_print(bio_out, cert);
+ 	}
+ 	if (PEM_write_bio_X509(bio_out, cert))  {
+-		BUF_MEM *bio_buf;
++		char *bio_data;
++		int bio_len;
+ 
+ 		zval_dtor(zout);
+-		BIO_get_mem_ptr(bio_out, &bio_buf);
+-		ZVAL_STRINGL(zout, bio_buf->data, bio_buf->length, 1);
++		bio_len = BIO_get_mem_data(bio_out, &bio_data);
++		ZVAL_STRINGL(zout, bio_data, bio_len, 1);
+ 
+ 		RETVAL_TRUE;
+ 	}
+@@ -2042,7 +2044,7 @@
+ {
+ 	GENERAL_NAMES *names;
+ 	const X509V3_EXT_METHOD *method = NULL;
+-	ASN1_OCTET_STRING *extension_data;
++	const ASN1_OCTET_STRING *extension_data;
+ 	long i, length, num;
+ 	const unsigned char *p;
+ 
+@@ -2052,8 +2054,8 @@
+ 	}
+ 
+ 	extension_data = X509_EXTENSION_get_data(extension);
+-	p = extension_data->data;
+-	length = extension_data->length;
++	p = (const unsigned char *)PHP_OPENSSL_ASN1_STRING_DATA(extension_data);
++	length = PHP_OPENSSL_ASN1_STRING_LENGTH(extension_data);
+ 	if (method->it) {
+ 		names = (GENERAL_NAMES*)(ASN1_item_d2i(NULL, &p, length,
+ 						       ASN1_ITEM_ptr(method->it)));
+@@ -2120,7 +2122,8 @@
+ 	char *cert_name;
+ 	char *extname;
+ 	BIO  *bio_out;
+-	BUF_MEM *bio_buf;
++	char *bio_data;
++	int bio_len;
+ 	char buf[256];
+ 
+ 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Z|b", &zcert, &useshortnames) == FAILURE) {
+@@ -2215,8 +2218,8 @@
+ 		bio_out = BIO_new(BIO_s_mem());
+ 		if (nid == NID_subject_alt_name) {
+ 			if (openssl_x509v3_subjectAltName(bio_out, extension) == 0) {
+-				BIO_get_mem_ptr(bio_out, &bio_buf);
+-				add_assoc_stringl(subitem, extname, bio_buf->data, bio_buf->length, 1);
++				bio_len = BIO_get_mem_data(bio_out, &bio_data);
++				add_assoc_stringl(subitem, extname, bio_data, bio_len, 1);
+ 			} else {
+ 				zval_dtor(return_value);
+ 				if (certresource == -1 && cert) {
+@@ -2227,8 +2230,8 @@
+ 			}
+ 		}
+ 		else if (X509V3_EXT_print(bio_out, extension, 0, 0)) {
+-			BIO_get_mem_ptr(bio_out, &bio_buf);
+-			add_assoc_stringl(subitem, extname, bio_buf->data, bio_buf->length, 1);
++			bio_len = BIO_get_mem_data(bio_out, &bio_data);
++			add_assoc_stringl(subitem, extname, bio_data, bio_len, 1);
+ 		} else {
+ 			add_assoc_asn1_string(subitem, extname, X509_EXTENSION_get_data(extension));
+ 		}
+@@ -2677,11 +2680,12 @@
+ 
+ 	bio_out = BIO_new(BIO_s_mem());
+ 	if (i2d_PKCS12_bio(bio_out, p12))  {
+-		BUF_MEM *bio_buf;
++		char *bio_data;
++		int bio_len;
+ 
+ 		zval_dtor(zout);
+-		BIO_get_mem_ptr(bio_out, &bio_buf);
+-		ZVAL_STRINGL(zout, bio_buf->data, bio_buf->length, 1);
++		bio_len = BIO_get_mem_data(bio_out, &bio_data);
++		ZVAL_STRINGL(zout, bio_data, bio_len, 1);
+ 
+ 		RETVAL_TRUE;
+ 	}
+@@ -2734,20 +2738,22 @@
+ 
+ 			bio_out = BIO_new(BIO_s_mem());
+ 			if (PEM_write_bio_X509(bio_out, cert)) {
+-				BUF_MEM *bio_buf;
+-				BIO_get_mem_ptr(bio_out, &bio_buf);
++				char *bio_data;
++				int bio_len;
++				bio_len = BIO_get_mem_data(bio_out, &bio_data);
+ 				MAKE_STD_ZVAL(zcert);
+-				ZVAL_STRINGL(zcert, bio_buf->data, bio_buf->length, 1);
++				ZVAL_STRINGL(zcert, bio_data, bio_len, 1);
+ 				add_assoc_zval(zout, "cert", zcert);
+ 			}
+ 			BIO_free(bio_out);
+ 
+ 			bio_out = BIO_new(BIO_s_mem());
+ 			if (PEM_write_bio_PrivateKey(bio_out, pkey, NULL, NULL, 0, 0, NULL)) {
+-				BUF_MEM *bio_buf;
+-				BIO_get_mem_ptr(bio_out, &bio_buf);
++				char *bio_data;
++				int bio_len;
++				bio_len = BIO_get_mem_data(bio_out, &bio_data);
+ 				MAKE_STD_ZVAL(zpkey);
+-				ZVAL_STRINGL(zpkey, bio_buf->data, bio_buf->length, 1);
++				ZVAL_STRINGL(zpkey, bio_data, bio_len, 1);
+ 				add_assoc_zval(zout, "pkey", zpkey);
+ 			}
+ 			BIO_free(bio_out);
+@@ -2770,10 +2776,11 @@
+ 
+ 				bio_out = BIO_new(BIO_s_mem());
+ 				if (PEM_write_bio_X509(bio_out, aCA)) {
+-					BUF_MEM *bio_buf;
+-					BIO_get_mem_ptr(bio_out, &bio_buf);
++					char *bio_data;
++					int bio_len;
++					bio_len = BIO_get_mem_data(bio_out, &bio_data);
+ 					MAKE_STD_ZVAL(zextracert);
+-					ZVAL_STRINGL(zextracert, bio_buf->data, bio_buf->length, 1);
++					ZVAL_STRINGL(zextracert, bio_data, bio_len, 1);
+ 					add_index_zval(zextracerts, i, zextracert);
+ 					
+ 				}
+@@ -3090,11 +3097,12 @@
+ 	}
+ 
+ 	if (PEM_write_bio_X509_REQ(bio_out, csr)) {
+-		BUF_MEM *bio_buf;
++		char *bio_data;
++		int bio_len;
+ 
+-		BIO_get_mem_ptr(bio_out, &bio_buf);
++		bio_len = BIO_get_mem_data(bio_out, &bio_data);
+ 		zval_dtor(zout);
+-		ZVAL_STRINGL(zout, bio_buf->data, bio_buf->length, 1);
++		ZVAL_STRINGL(zout, bio_data, bio_len, 1);
+ 
+ 		RETVAL_TRUE;
+ 	}
+--- a/ext/openssl/xp_ssl.c
++++ b/ext/openssl/xp_ssl.c
+@@ -402,12 +402,12 @@
+ 			}
+ 			OPENSSL_free(cert_name);
+ 		} else if (san->type == GEN_IPADD) {
+-			if (san->d.iPAddress->length == 4) {
++			if (PHP_OPENSSL_ASN1_STRING_LENGTH(san->d.iPAddress) == 4) {
+ 				sprintf(ipbuffer, "%d.%d.%d.%d",
+-					san->d.iPAddress->data[0],
+-					san->d.iPAddress->data[1],
+-					san->d.iPAddress->data[2],
+-					san->d.iPAddress->data[3]
++					(int)PHP_OPENSSL_ASN1_STRING_DATA(san->d.iPAddress)[0],
++					(int)PHP_OPENSSL_ASN1_STRING_DATA(san->d.iPAddress)[1],
++					(int)PHP_OPENSSL_ASN1_STRING_DATA(san->d.iPAddress)[2],
++					(int)PHP_OPENSSL_ASN1_STRING_DATA(san->d.iPAddress)[3]
+ 				);
+ 				if (strcasecmp(subject_name, (const char*)ipbuffer) == 0) {
+ 					return 1;
+@@ -932,7 +932,8 @@
+ }
+ /* }}} */
+ 
+-static const SSL_METHOD *php_select_crypto_method(long method_value, int is_client TSRMLS_DC) /* {{{ */
++static const SSL_METHOD *php_select_crypto_method(long method_value, int is_client,
++		int *min_proto_version TSRMLS_DC) /* {{{ */
+ {
+ 	if (method_value == STREAM_CRYPTO_METHOD_SSLv2) {
+ #if !defined(OPENSSL_NO_SSL2) && OPENSSL_VERSION_NUMBER < 0x10100000L
+@@ -943,7 +944,12 @@
+ 		return NULL;
+ #endif
+ 	} else if (method_value == STREAM_CRYPTO_METHOD_SSLv3) {
+-#ifndef OPENSSL_NO_SSL3
++#if OPENSSL_VERSION_NUMBER >= 0x30000000L
++		/* The SSLv3 method functions were removed in OpenSSL 3.0 */
++		php_error_docref(NULL TSRMLS_CC, E_WARNING,
++				"SSLv3 support was removed from the OpenSSL library PHP is linked against");
++		return NULL;
++#elif !defined(OPENSSL_NO_SSL3)
+ 		return is_client ? SSLv3_client_method() : SSLv3_server_method();
+ #else
+ 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+@@ -951,9 +957,19 @@
+ 		return NULL;
+ #endif
+ 	} else if (method_value == STREAM_CRYPTO_METHOD_TLSv1_0) {
++#if OPENSSL_VERSION_NUMBER >= 0x30000000L
++		/* The version-pinned method functions were removed in OpenSSL 3.0:
++		 * use the generic TLS method and pin the minimum protocol instead */
++		*min_proto_version = TLS1_VERSION;
++		return is_client ? TLS_client_method() : TLS_server_method();
++#else
+ 		return is_client ? TLSv1_client_method() : TLSv1_server_method();
++#endif
+ 	} else if (method_value == STREAM_CRYPTO_METHOD_TLSv1_1) {
+-#if OPENSSL_VERSION_NUMBER >= 0x10001001L
++#if OPENSSL_VERSION_NUMBER >= 0x30000000L
++		*min_proto_version = TLS1_1_VERSION;
++		return is_client ? TLS_client_method() : TLS_server_method();
++#elif OPENSSL_VERSION_NUMBER >= 0x10001001L
+ 		return is_client ? TLSv1_1_client_method() : TLSv1_1_server_method();
+ #else
+ 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+@@ -961,7 +977,10 @@
+ 		return NULL;
+ #endif
+ 	} else if (method_value == STREAM_CRYPTO_METHOD_TLSv1_2) {
+-#if OPENSSL_VERSION_NUMBER >= 0x10001001L
++#if OPENSSL_VERSION_NUMBER >= 0x30000000L
++		*min_proto_version = TLS1_2_VERSION;
++		return is_client ? TLS_client_method() : TLS_server_method();
++#elif OPENSSL_VERSION_NUMBER >= 0x10001001L
+ 		return is_client ? TLSv1_2_client_method() : TLSv1_2_server_method();
+ #else
+ 		php_error_docref(NULL TSRMLS_CC, E_WARNING,
+@@ -1443,6 +1462,7 @@
+ 	const SSL_METHOD *method;
+ 	long ssl_ctx_options;
+ 	long method_flags;
++	int min_proto_version = 0;
+ 	char *cipherlist = NULL;
+ 	zval **val;
+ 
+@@ -1465,7 +1485,8 @@
+ 	/* Should we use a specific crypto method or is generic SSLv23 okay? */
+ 	if ((method_flags & (method_flags-1)) == 0) {
+ 		ssl_ctx_options = SSL_OP_ALL;
+-		method = php_select_crypto_method(method_flags, sslsock->is_client TSRMLS_CC);
++		method = php_select_crypto_method(method_flags, sslsock->is_client,
++				&min_proto_version TSRMLS_CC);
+ 		if (method == NULL) {
+ 			return FAILURE;
+ 		}
+@@ -1489,6 +1510,12 @@
+ 		return FAILURE;
+ 	}
+ 
++#if OPENSSL_VERSION_NUMBER >= 0x30000000L
++	if (min_proto_version) {
++		SSL_CTX_set_min_proto_version(sslsock->ctx, min_proto_version);
++	}
++#endif
++
+ #if OPENSSL_VERSION_NUMBER >= 0x0090806fL
+ 	if (GET_VER_OPT("no_ticket") && zend_is_true(*val)) {
+ 		ssl_ctx_options |= SSL_OP_NO_TICKET;
