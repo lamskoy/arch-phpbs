@@ -4,6 +4,125 @@ build_sourcepkg="${BUILD_SOURCE:-1}"
 build_binpkg="${BUILD_BINARY:-1}"
 skip_sums="${SKIP_SUMS:-0}"
 skip_build_check=1
+# Enable systemd integration for FPM (disabled by default, set to 1 to enable)
+build_systemd="${BUILD_SYSTEMD:-0}"
+
+# Regex patterns for parsing makepkg output (stored in variables to avoid bash parsing issues)
+_re_target_not_found='error: target not found: (.+)'
+_re_arrow_dep='\-> (.+)'
+_re_missing_deps='\=\>\ Missing dependencies'
+_re_list_item='^\ \-> (.+)'
+
+# AUR helper fallback function - uses yay to install packages not found in official repos
+_phpbs_aur_install() {
+    local _aur_packages=("$@")
+    if [[ ${#_aur_packages[@]} -eq 0 ]]; then
+        return 0
+    fi
+    
+    # Check if yay is available
+    if ! command -v yay &> /dev/null; then
+        _phpbs_error_message "yay is not installed. Please install yay to fetch AUR packages."
+        _phpbs_cmd_message "Install yay with: git clone https://aur.archlinux.org/yay.git && cd yay && makepkg -si"
+        return 1
+    fi
+    
+    _phpbs_info_message "Installing AUR packages: ${_aur_packages[*]}"
+    yay -S --noconfirm --needed "${_aur_packages[@]}"
+    if [[ $? -ne 0 ]]; then
+        _phpbs_error_message "Failed to install AUR packages: ${_aur_packages[*]}"
+        return 1
+    fi
+    return 0
+}
+
+# Extract missing packages from makepkg error output
+_phpbs_extract_missing_pkgs() {
+    local _output="$1"
+    local _missing_packages=()
+    local _line
+    local _pkg
+    local _in_missing=0
+    
+    while IFS= read -r _line; do
+        # Check for "error: target not found: <package>"
+        if [[ "$_line" =~ $_re_target_not_found ]]; then
+            local _pkg_list="${BASH_REMATCH[1]}"
+            for _pkg in $_pkg_list; do
+                if [[ ! " ${_missing_packages[*]} " =~ " $_pkg " ]]; then
+                    _missing_packages+=("$_pkg")
+                fi
+            done
+        fi
+        
+        # Check for "Missing dependencies:" section header
+        if [[ "$_line" =~ $_re_missing_deps ]]; then
+            _in_missing=1
+            continue
+        fi
+        
+        # If we're in the missing dependencies section, extract package names
+        if [[ $_in_missing -eq 1 ]]; then
+            if [[ "$_line" =~ $_re_list_item ]]; then
+                _pkg="${BASH_REMATCH[1]}"
+                _pkg=$(echo "$_pkg" | xargs)
+                if [[ -n "$_pkg" && ! " ${_missing_packages[*]} " =~ " $_pkg " ]]; then
+                    _missing_packages+=("$_pkg")
+                fi
+            else
+                _in_missing=0
+            fi
+        fi
+    done <<< "$_output"
+    
+    # Output the collected packages (newline-separated)
+    for _pkg in "${_missing_packages[@]}"; do
+        echo "$_pkg"
+    done
+}
+
+# Wrapper for makepkg that handles AUR dependencies
+_phpbs_makepkg() {
+    local _makepkg_args=("$@")
+    local _makepkg_output
+    local _makepkg_exit=0
+    
+    # Run makepkg and capture output
+    _makepkg_output=$(printf "%s" "${_makepkg_args[@]}" | BUILDDIR="${BUILDDIR:-.}" xargs makepkg 2>&1)
+    _makepkg_exit=$?
+    
+    # Check if the failure is due to missing AUR packages
+    if [[ $_makepkg_exit -ne 0 ]]; then
+        # Extract missing package names from error output
+        local _missing_packages_str
+        _missing_packages_str=$(_phpbs_extract_missing_pkgs "$_makepkg_output")
+        
+        if [[ -n "$_missing_packages_str" ]]; then
+            local _missing_packages=()
+            while IFS= read -r _pkg; do
+                [[ -n "$_pkg" ]] && _missing_packages+=("$_pkg")
+            done <<< "$_missing_packages_str"
+            
+            # If we found missing packages, try to install them from AUR
+            if [[ ${#_missing_packages[@]} -gt 0 ]]; then
+                _phpbs_warning_message "makepkg failed, attempting to install missing AUR packages: ${_missing_packages[*]}"
+                _phpbs_aur_install "${_missing_packages[@]}"
+                if [[ $? -eq 0 ]]; then
+                    _phpbs_info_message "AUR packages installed, retrying makepkg..."
+                    # Retry makepkg with original arguments
+                    printf "%s" "${_makepkg_args[@]}" | BUILDDIR="${BUILDDIR:-.}" xargs makepkg
+                    _makepkg_exit=$?
+                    if [[ $_makepkg_exit -eq 0 ]]; then
+                        _phpbs_info_message "makepkg succeeded after installing AUR packages"
+                        return 0
+                    fi
+                fi
+            fi
+        fi
+    fi
+    
+    return $_makepkg_exit
+}
 
 _phpbs_set_vars() {
     ###########################################################################
@@ -227,16 +346,17 @@ _phpbs_set_vars() {
         'krb5'
         'zlib'
         'libedit'
-        'smtp-forwarder'
+        'exim'
         'pcre'
         'apache'
         'ncurses'
         'libxcrypt'
-        'systemd'
-        'systemd-libs'
         'coreutils'
         'findutils'
     )
+    if ((build_systemd)); then
+        makedepends+=('systemd' 'systemd-libs')
+    fi
 
     if ((_build_uses_argon)); then
         makedepends+=('argon2')
@@ -310,6 +430,16 @@ _phpbs_set_vars() {
     fi
     if ((_phpbase >= 50 && _phpbase <= 80)); then
         _patches+=("openssl-sslv3-consts.patch")
+    fi
+    if ((74 == _phpbase)); then
+        # OpenSSL 4.x compat: opaque ASN1_STRING family + ERR_NUM_ERRORS removed.
+        # PHP 8.0 has the same issue but needs its own patch (different contexts).
+        _patches+=("openssl4-php7.4.patch")
+    fi
+    if ((56 == _phpbase)); then
+        # OpenSSL 4.x compat: opaque ASN1_STRING family + removed legacy symbols.
+        # Must be applied after openssl-1.1.patch and openssl-sslv3-consts.patch.
+        _patches+=("openssl4-php5.6.patch")
     fi
     if ((_phpbase >= 54 && _phpbase <= 59 && _build_update_sqlite)); then
         # PHP >= 5.4 && PHP < 7: Upgrade sqlite lib to 3.28
@@ -444,7 +574,9 @@ _phpbs_set_vars() {
 
     _phpextensions_fpm+=" --with-fpm-user=${_fpm_user} "
     _phpextensions_fpm+=" --with-fpm-group=${_fpm_group} "
-    _phpextensions_fpm+=" --with-fpm-systemd "
+    if ((build_systemd)); then
+        _phpextensions_fpm+=" --with-fpm-systemd "
+    fi
     _phpextensions_fpm+=" --with-fpm-acl "
 
     # Basic submodules. Cli shoud be first!
@@ -467,7 +599,7 @@ _phpbs_set_vars() {
     _make_dependencies_ldap=('libsasl' 'libldap')
     _make_dependencies_dblib=('freetds')
     _make_dependencies_pgsql=('postgresql-libs')
-    _make_dependencies_enchant=('enchant' 'libvoikko' 'hspell' 'hunspell' 'nuspell' 'aspell')
+    _make_dependencies_enchant=('enchant' 'hunspell' 'aspell')
     _make_dependencies_curl=('curl')
     _make_dependencies_odbc=('unixodbc')
     _make_dependencies_dba=('db5.3')
@@ -1207,7 +1339,7 @@ fi
 #@@@PKGBUILD_START@@@
 options=('!lto')
 arch=("$CARCH")
-checkdepends=('procps-ng' 'smtp-forwarder')
+checkdepends=('procps-ng' 'exim')
 license=('PHP')
 url='http://www.php.net'
 
@@ -1660,7 +1792,10 @@ package_php___PHPBASE___-fpm___SUFFIX___() {
     _sapi="fpm"
     install="php-fpm.install"
     pkgdesc="FastCGI Process Manager for ${pkgbase}"
-    depends=("${pkgbase}=${pkgver}" 'systemd-libs' 'acl')
+    depends=("${pkgbase}=${pkgver}" 'acl')
+    if ((build_systemd)); then
+        depends+=('systemd-libs')
+    fi
     depends+=("${_sapi_depends[@]}")
     backup=("${_build_sapi_ini_fpm}/php-fpm.conf")
     if ((_phpbase >= 70)); then
@@ -1678,7 +1813,9 @@ package_php___PHPBASE___-fpm___SUFFIX___() {
         install -D -m644 "../php-${pkgver}/php.ini-production" "${pkgdir}/${_build_sapi_ini_fpm}/php.ini"
     fi
     make -j1 INSTALL_ROOT="${pkgdir}" install-fpm
-    install -D -m644 "sapi/fpm/php-fpm.service" "${pkgdir}/usr/lib/systemd/system/${_build_fpm_service_name}.service"
+    if ((build_systemd)); then
+        install -D -m644 "sapi/fpm/php-fpm.service" "${pkgdir}/usr/lib/systemd/system/${_build_fpm_service_name}.service"
+    fi
     echo "d /run/${_build_fpm_service_name} 755 root root" > php-fpm.tmpfiles
     install -D -m644 "php-fpm.tmpfiles" "${pkgdir}/usr/lib/tmpfiles.d/${_build_fpm_service_name}.conf"
     popd
@@ -1689,7 +1826,10 @@ package_php___PHPBASE___-fpm___SUFFIX___() {
 package_php___PHPBASE___-embed___SUFFIX___() {
     _sapi="embed"
     pkgdesc="Embedded PHP SAPI library for ${pkgbase}"
-    depends=("${pkgbase}=${pkgver}" 'ncurses' 'systemd-libs' 'libxcrypt' 'acl' 'ncurses')
+    depends=("${pkgbase}=${pkgver}" 'ncurses' 'libxcrypt' 'acl' 'ncurses')
+    if ((build_systemd)); then
+        depends+=('systemd-libs')
+    fi
     depends+=("${_sapi_depends[@]}")
     options=('!emptydirs')
     if ((_build_ini_per_sapi)); then
@@ -2104,7 +2244,7 @@ package_php___PHPBASE___-gmp___SUFFIX___() {
 # Enchant
 package_php___PHPBASE___-enchant___SUFFIX___() {
     pkgdesc="enchant module for ___PKGBASE___"
-    depends=("___PKGBASE___=${pkgver}" 'enchant' 'libvoikko' 'hspell' 'hunspell' 'nuspell' 'aspell')
+    depends=("___PKGBASE___=${pkgver}" 'enchant' 'hunspell' 'aspell')
     _install_module enchant
 }
 

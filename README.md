@@ -41,3 +41,23 @@ Use ``make help`` to see more details
 ### Who can use it?
 
 Anybody who uses ArchLinux or it's derivatives like Manjaro
+
+
+### Systemd integration optional
+
+The **phpbs** script has been updated to make systemd integration optional. Systemd is **disabled by default** but can be enabled by setting the `BUILD_SYSTEMD=1` environment variable.
+
+Main changes made:
+
+**Line 8**: Added `build_systemd="${BUILD_SYSTEMD:-0}"` variable
+
+
+**Usage:**
+
+- Default build (no systemd): `./phpbs php74` or `BUILD_SYSTEMD=0 ./phpbs php74`
+- With systemd integration: `BUILD_SYSTEMD=1 ./phpbs php74`
+
+
+
+**The effect of `--with-fpm-systemd` configure flag**:  
+PHP FPM will run in simple mode instead of notify mode, which is compatible with non-systemd init systems.
