@@ -1,0 +1,87 @@
+--- a/ext/openssl/php_openssl.h
++++ b/ext/openssl/php_openssl.h
+@@ -66,6 +66,27 @@
+ 
+ #include <openssl/err.h>
+ 
++/*
++ * ERR_NUM_ERRORS was removed in OpenSSL 4.0. It is only used below as the
++ * size of the error ring buffer, so fall back to a fixed size.
++ */
++#ifndef ERR_NUM_ERRORS
++# define ERR_NUM_ERRORS 137
++#endif
++
++/*
++ * Direct member access to the ASN1_STRING family was removed when the
++ * structs became opaque in OpenSSL 4.0. Use the accessors on OpenSSL >= 1.1.0.
++ */
++#if OPENSSL_VERSION_NUMBER >= 0x10100000L
++# define PHP_OPENSSL_ASN1_STRING_DATA(x)   (ASN1_STRING_get0_data(x))
++# define PHP_OPENSSL_ASN1_STRING_LENGTH(x) (ASN1_STRING_length(x))
++#else
++# define PHP_OPENSSL_ASN1_STRING_DATA(x)   ((x)->data)
++# define PHP_OPENSSL_ASN1_STRING_LENGTH(x) ((x)->length)
++#endif
++
++
+ #ifdef PHP_WIN32
+ #	define PHP_OPENSSL_API __declspec(dllexport)
+ #elif defined(__GNUC__) && __GNUC__ >= 4
+--- a/ext/openssl/openssl.c
++++ b/ext/openssl/openssl.c
+@@ -943,7 +943,7 @@
+ 
+ static void php_openssl_add_assoc_asn1_string(zval * val, char * key, ASN1_STRING * str) /* {{{ */
+ {
+-	add_assoc_stringl(val, key, (char *)str->data, str->length);
++	add_assoc_stringl(val, key, (char *)PHP_OPENSSL_ASN1_STRING_DATA(str), PHP_OPENSSL_ASN1_STRING_LENGTH(str));
+ }
+ /* }}} */
+ 
+@@ -976,12 +976,12 @@
+ 	}
+ 
+ 	if (timestr_len < 13 && timestr_len != 11) {
+-		php_error_docref(NULL, E_WARNING, "unable to parse time string %s correctly", timestr->data);
++		php_error_docref(NULL, E_WARNING, "unable to parse time string %s correctly", (const char *)PHP_OPENSSL_ASN1_STRING_DATA(timestr));
+ 		return (time_t)-1;
+ 	}
+ 
+ 	if (ASN1_STRING_type(timestr) == V_ASN1_GENERALIZEDTIME && timestr_len < 15) {
+-		php_error_docref(NULL, E_WARNING, "unable to parse time string %s correctly", timestr->data);
++		php_error_docref(NULL, E_WARNING, "unable to parse time string %s correctly", (const char *)PHP_OPENSSL_ASN1_STRING_DATA(timestr));
+ 		return (time_t)-1;
+ 	}
+ 
+@@ -2306,8 +2306,8 @@
+ 	}
+ 
+ 	extension_data = X509_EXTENSION_get_data(extension);
+-	p = extension_data->data;
+-	length = extension_data->length;
++	p = (const unsigned char *)PHP_OPENSSL_ASN1_STRING_DATA(extension_data);
++	length = PHP_OPENSSL_ASN1_STRING_LENGTH(extension_data);
+ 	if (method->it) {
+ 		names = (GENERAL_NAMES*) (ASN1_item_d2i(NULL, &p, length,
+ 			ASN1_ITEM_ptr(method->it)));
+--- a/ext/openssl/xp_ssl.c
++++ b/ext/openssl/xp_ssl.c
+@@ -455,12 +455,12 @@
+ 			}
+ 			OPENSSL_free(cert_name);
+ 		} else if (san->type == GEN_IPADD) {
+-			if (san->d.iPAddress->length == 4) {
++			if (PHP_OPENSSL_ASN1_STRING_LENGTH(san->d.iPAddress) == 4) {
+ 				sprintf(ipbuffer, "%d.%d.%d.%d",
+-					san->d.iPAddress->data[0],
+-					san->d.iPAddress->data[1],
+-					san->d.iPAddress->data[2],
+-					san->d.iPAddress->data[3]
++					(int)PHP_OPENSSL_ASN1_STRING_DATA(san->d.iPAddress)[0],
++					(int)PHP_OPENSSL_ASN1_STRING_DATA(san->d.iPAddress)[1],
++					(int)PHP_OPENSSL_ASN1_STRING_DATA(san->d.iPAddress)[2],
++					(int)PHP_OPENSSL_ASN1_STRING_DATA(san->d.iPAddress)[3]
+ 				);
+ 				if (strcasecmp(subject_name, (const char*)ipbuffer) == 0) {
+ 					sk_GENERAL_NAME_pop_free(alt_names, GENERAL_NAME_free);

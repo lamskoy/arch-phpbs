@@ -431,6 +431,11 @@ _phpbs_set_vars() {
     if ((_phpbase >= 50 && _phpbase <= 80)); then
         _patches+=("openssl-sslv3-consts.patch")
     fi
+    if ((74 == _phpbase)); then
+        # OpenSSL 4.x compat: opaque ASN1_STRING family + ERR_NUM_ERRORS removed.
+        # PHP 8.0 has the same issue but needs its own patch (different contexts).
+        _patches+=("openssl4-php7.4.patch")
+    fi
     if ((_phpbase >= 54 && _phpbase <= 59 && _build_update_sqlite)); then
         # PHP >= 5.4 && PHP < 7: Upgrade sqlite lib to 3.28
         _patches+=("sqlite-3.28-php5.4.patch")
